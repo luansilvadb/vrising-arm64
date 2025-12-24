@@ -122,15 +122,16 @@ install_or_update_server() {
     cd "${STEAMCMD_DIR}"
     
     local attempt=1
-    local max_attempts=3
+    local max_attempts=5
     
     while [ $attempt -le $max_attempts ]; do
         log_info "Tentativa ${attempt} de ${max_attempts}..."
         
         # Mostrar toda a saída do SteamCMD para debug
+        # Ordem correta: force_install_dir -> login -> app_update -> quit
         box86 /opt/steamcmd/linux32/steamcmd \
-            +@sSteamCmdForcePlatformType windows \
             +force_install_dir "${SERVER_DIR}" \
+            +@sSteamCmdForcePlatformType windows \
             +login anonymous \
             +app_update ${VRISING_APP_ID} validate \
             +quit
