@@ -2,6 +2,15 @@
 s=/mnt/vrising/server
 p=/mnt/vrising/persistentdata
 
+# Box64/Box86 environment for ARM64 emulation
+export BOX64_LOG=0
+export BOX86_LOG=0
+export BOX64_LD_LIBRARY_PATH=/opt/wine/wine/lib/wine/x86_64-unix:/lib/x86_64-linux-gnu
+export BOX86_LD_LIBRARY_PATH=/opt/wine/wine/lib/wine/i386-unix:/lib/i386-linux-gnu
+export WINEPREFIX=/home/steam/.wine
+export WINEARCH=win64
+export DISPLAY=:0
+
 term_handler() {
 	echo "Shutting down Server"
 
@@ -60,7 +69,8 @@ chmod -R 777 /root/.steam 2>/dev/null
 echo " "
 echo "Updating V-Rising Dedicated Server files..."
 echo " "
-/usr/bin/steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir "$s" +login anonymous +app_update 1829350 $beta_arg validate +quit
+# Using box86 to run steamcmd on ARM64
+box86 /home/steam/steamcmd/steamcmd.sh +@sSteamCmdForcePlatformType windows +force_install_dir "$s" +login anonymous +app_update 1829350 $beta_arg validate +quit
 printf "steam_appid: "
 cat "$s/steam_appid.txt"
 
@@ -248,10 +258,11 @@ rm /tmp/.X0-lock 2>&1
 echo " "
 echo "Starting Xvfb"
 Xvfb :0 -screen 0 1024x768x16 &
-echo "Launching wine64 V Rising"
+echo "Launching wine64 V Rising via Box64"
 echo " "
 v() {
-	DISPLAY=:0.0 wine64 /mnt/vrising/server/VRisingServer.exe -persistentDataPath $p -serverName "$SERVERNAME" "$override_savename" -logFile "$p/$logfile" "$game_port" "$query_port" 2>&1 &
+	# Use box64 to run wine64 on ARM64
+	DISPLAY=:0.0 box64 /opt/wine/wine/bin/wine64 /mnt/vrising/server/VRisingServer.exe -persistentDataPath $p -serverName "$SERVERNAME" "$override_savename" -logFile "$p/$logfile" "$game_port" "$query_port" 2>&1 &
 }
 v
 # Gets the PID of the last command
