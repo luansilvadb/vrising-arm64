@@ -29,12 +29,29 @@ box86 ./linux32/steamcmd +quit 2>&1 | tee /tmp/steamcmd_update.log
 echo "--- SteamCMD self-update exit code: $? ---"
 
 echo "--- Step 2: Download V Rising server ---"
+# Command order is critical for SteamCMD:
+# 1. Set platform type first
+# 2. Set install directory 
+# 3. Login
+# 4. Download app
 box86 ./linux32/steamcmd \
     +@sSteamCmdForcePlatformType windows \
     +force_install_dir /data/server \
     +login anonymous \
+    +app_info_update 1 \
     +app_update 1829350 validate \
     +quit 2>&1 | tee /tmp/steamcmd.log
+
+# If first attempt failed, retry (sometimes SteamCMD needs a second try)
+if [ ! -f "/data/server/VRisingServer.exe" ]; then
+    echo "--- First download attempt incomplete, retrying... ---"
+    box86 ./linux32/steamcmd \
+        +@sSteamCmdForcePlatformType windows \
+        +force_install_dir /data/server \
+        +login anonymous \
+        +app_update 1829350 validate \
+        +quit 2>&1 | tee -a /tmp/steamcmd.log
+fi
 
 STEAM_EXIT=$?
 echo "--- SteamCMD exit code: $STEAM_EXIT ---"
