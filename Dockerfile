@@ -60,6 +60,12 @@ RUN ln -sf "${ROOTFS_DIR}" /home/vrising/.fex-emu/RootFS && \
     ls -la /usr/share/wine /usr/lib/wine 2>/dev/null || echo "Wine symlinks check" && \
     ls -la "${ROOTFS_DIR}/usr/share/wine/wine/" | head -5
 
+# 5.1. Instala certificados CA no RootFS (fix para SteamCMD SSL)
+USER vrising
+RUN echo "=== Installing CA certificates in RootFS ===" && \
+    FEXBash -c "apt-get update && apt-get install -y ca-certificates && update-ca-certificates && rm -rf /var/lib/apt/lists/*" && \
+    echo "=== CA certificates installed ==="
+
 # 6. Copia scripts
 COPY --chown=vrising:vrising entrypoint.sh /app/
 COPY --chown=vrising:vrising wine-wrapper.sh /app/
