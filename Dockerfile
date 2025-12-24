@@ -43,7 +43,13 @@ RUN mkdir -p /opt/wine \
 # Install SteamCMD (Linux x86 32-bit, runs via box86)
 RUN mkdir -p $STEAMCMD_DIR \
     && cd $STEAMCMD_DIR \
-    && curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf -
+    && curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - \
+    && chmod +x steamcmd.sh
+
+# Create a wrapper for steamcmd to ensure it runs via box86 and is in PATH
+RUN echo '#!/bin/bash' > /usr/bin/steamcmd \
+    && echo 'box86 /usr/games/steamcmd/steamcmd.sh "$@"' >> /usr/bin/steamcmd \
+    && chmod +x /usr/bin/steamcmd
 
 # Setup directory structure
 WORKDIR /data
