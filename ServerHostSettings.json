@@ -1,0 +1,27 @@
+{
+  "Name": "VRising-ARM64",
+  "Description": "VRising Server on ARM64 via FEX-Emu",
+  "Port": 27015,
+  "QueryPort": 27016,
+  "MaxConnectedUsers": 10,
+  "MaxConnectedAdmins": 2,
+  "ServerFps": 30,
+  "SaveName": "world1",
+  "Password": "",
+  "Secure": false,
+  "ListOnMasterServer": false,
+  "AutoSaveCount": 20,
+  "AutoSaveInterval": 120,
+  "CompressSaveFiles": true,
+  "GameSettingsPreset": "",
+  "AdminOnlyDebugEvents": true,
+  "DisableDebugEvents": false,
+  "API": {
+    "Enabled": false
+  },
+  "Rcon": {
+    "Enabled": false,
+    "Port": 25575,
+    "Password": ""
+  }
+}

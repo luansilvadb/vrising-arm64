@@ -40,9 +40,11 @@ WORKDIR /steamcmd
 RUN curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar xzf - && \
     chmod +x steamcmd.sh linux32/steamcmd
 
-# 7. Scripts
-COPY --chown=vrising:vrising entrypoint.debug.sh /app/entrypoint.sh
+# 7. Scripts e Configs
+COPY --chown=vrising:vrising entrypoint.fulldebug.sh /app/entrypoint.sh
 COPY --chown=vrising:vrising wine-wrapper.sh /app/
+COPY --chown=vrising:vrising ServerHostSettings.json /app/
+COPY --chown=vrising:vrising ServerGameSettings.json /app/
 RUN chmod +x /app/*.sh
 
 WORKDIR /app
