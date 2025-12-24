@@ -37,6 +37,9 @@ RUN dpkg --add-architecture armhf \
         libxslt1.1 libxml2 liblcms2-2 libgnutls30 libmpg123-0 libopenal1 \
         libncurses6 libvulkan1 libcups2 libavutil56 libavformat58 libavcodec58 \
         libswresample3 libv4l-0 libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 \
+        # Additional libraries for Wayland and XKB (needed by Wine/Box64)
+        libwayland-client0 libwayland-egl1 libxkbcommon0 libxkbregistry0 \
+        libxcb-xkb1 libxkbcommon-x11-0 libwayland-cursor0 \
         # armhf libraries for Box86 (SteamCMD i386 emulation)
         libc6:armhf libstdc++6:armhf libncurses6:armhf \
     # Unattended upgrades cleanup
