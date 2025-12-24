@@ -14,12 +14,44 @@ export WINEDEBUG="-all"
 export WINEARCH="win64"
 
 # Install/Update V Rising via SteamCMD (Windows version)
-# We use the Windows SteamCMD running via Box86/Wine or just native Linux SteamCMD via Box86?
-# SteamCMD Linux is 32-bit. Box86 is perfect for it.
-# But we need to download WINDOWS app.
 echo "--- Updating V Rising (AppID: 1829350) ---"
-# +platform override is crucial to force downloading Windows binaries on Linux
-steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir /data/server +login anonymous +app_update 1829350 validate +quit
+echo "--- SteamCMD will download Windows version to /data/server ---"
+
+# Run SteamCMD with verbose output
+echo "--- Running SteamCMD ---"
+steamcmd +@sSteamCmdForcePlatformType windows \
+    +force_install_dir /data/server \
+    +login anonymous \
+    +app_update 1829350 validate \
+    +quit 2>&1 | tee /tmp/steamcmd.log
+
+STEAM_EXIT=$?
+echo "--- SteamCMD exit code: $STEAM_EXIT ---"
+
+# Show what was downloaded
+echo "--- Contents of /data/server after SteamCMD ---"
+ls -la /data/server/ 2>&1 || echo "Directory does not exist or is empty"
+
+# Check if executable exists
+if [ ! -f "/data/server/VRisingServer.exe" ]; then
+    echo ""
+    echo "=========================================="
+    echo "ERROR: Download failed!"
+    echo "VRisingServer.exe not found after SteamCMD"
+    echo "=========================================="
+    echo ""
+    echo "--- Last 50 lines of SteamCMD log ---"
+    tail -50 /tmp/steamcmd.log
+    echo ""
+    echo "--- Checking SteamCMD installation ---"
+    which steamcmd
+    file $(which steamcmd)
+    echo ""
+    echo "--- Sleeping to allow log inspection ---"
+    sleep infinity
+fi
+
+echo "--- Download verified successfully ---"
 
 echo "--- Starting Xvfb ---"
 Xvfb :0 -screen 0 1024x768x24 &
