@@ -150,6 +150,9 @@ fi
 
 echo "--- Command: wine64 ./VRisingServer.exe -persistentDataPath Z:\\data\\save-data -serverName $SERVER_NAME -saveName $SAVE_NAME ---"
 
+# Enable Wine debug for crash diagnosis (remove -all to see errors)
+export WINEDEBUG="err+all,fixme-all"
+
 # Launch process in background to allow trap to catch signals
 wine64 ./VRisingServer.exe \
     -batchmode \
@@ -158,7 +161,7 @@ wine64 ./VRisingServer.exe \
     -serverName "$SERVER_NAME" \
     -saveName "$SAVE_NAME" \
     -logFile "Z:\\data\\server.log" \
-    ${EXTRA_ARGS:-} &
+    ${EXTRA_ARGS:-} 2>&1 &
 
 SERVER_PID=$!
 echo "--- V Rising Server PID: $SERVER_PID ---"
@@ -167,4 +170,23 @@ wait $SERVER_PID
 EXIT_CODE=$?
 
 echo "--- V Rising Server exited with code: $EXIT_CODE ---"
+
+# Debug: Show last lines of server log if it exists
+if [ -f "/data/server.log" ]; then
+    echo "--- Last 50 lines of server.log ---"
+    tail -n 50 /data/server.log
+fi
+
+# Debug: Check for Unity crash logs
+if [ -f "/data/save-data/Player.log" ]; then
+    echo "--- Unity Player.log found ---"
+    tail -n 100 /data/save-data/Player.log
+fi
+
+# Debug: Check Wine prefix for crash dumps
+if [ -d "$WINEPREFIX/drive_c/users" ]; then
+    echo "--- Checking for crash dumps ---"
+    find "$WINEPREFIX/drive_c/users" -name "*.dmp" -o -name "*.mdmp" 2>/dev/null | head -5
+fi
+
 exit $EXIT_CODE
