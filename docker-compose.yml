@@ -9,6 +9,12 @@ services:
     stop_grace_period: 60s
     stop_signal: SIGTERM
     
+    # Security hardening for production
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    
     ports:
       - "9876:9876/udp"
       - "9877:9877/udp"
@@ -21,19 +27,18 @@ services:
       - SKIP_UPDATE=0
       
       # Box64 Performance Optimization (4 cores ARM)
-      # NOTE: Current settings prioritize PERFORMANCE over STABILITY.
-      # If experiencing crashes, change:
-      #   BOX64_DYNAREC_SAFEFLAGS=1 (safer flag handling)
-      #   BOX64_DYNAREC_STRONGMEM=2 (stricter memory ordering)
+      # PRODUCTION STABLE SETTINGS - prioritize stability for long-running servers
       - BOX64_DYNAREC=1
-      - BOX64_DYNAREC_BIGBLOCK=3
-      - BOX64_DYNAREC_STRONGMEM=1    # Use 2 for more stability
-      - BOX64_DYNAREC_SAFEFLAGS=0    # Use 1 for more stability
+      - BOX64_DYNAREC_BIGBLOCK=0       # Critical for Unity games with JIT/multithreading
+      - BOX64_DYNAREC_STRONGMEM=2      # Stricter memory ordering (prevents race conditions)
+      - BOX64_DYNAREC_SAFEFLAGS=1      # Safer x86 flag handling (prevents subtle crashes)
       - BOX64_DYNAREC_FASTNAN=1
       - BOX64_DYNAREC_FASTROUND=1
       - BOX64_DYNAREC_X87DOUBLE=1
+      - BOX64_DYNAREC_CALLRET=1        # Optimize CALL/RET instructions
+      - BOX64_DYNACACHE=1              # Enable dynarec cache for better performance
       - BOX64_MAXCPU=4
-      - BOX64_LOG=0  # Keep logging low in production
+      - BOX64_LOG=0                    # Keep logging low in production
       
       # Box86 Optimization (for SteamCMD)
       - BOX86_DYNAREC=1

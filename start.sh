@@ -31,14 +31,16 @@ echo "SERVER_NAME: $SERVER_NAME"
 echo "SAVE_NAME: $SAVE_NAME"
 echo "USER: $(whoami)"
 
-# Box64 Performance Optimization (Defaults for 4 cores ARM)
+# Box64 Performance Optimization (Production Stable Settings)
 export BOX64_DYNAREC="${BOX64_DYNAREC:-1}"
-export BOX64_DYNAREC_BIGBLOCK="${BOX64_DYNAREC_BIGBLOCK:-3}" # Increased to 3 for potential perf gain
-export BOX64_DYNAREC_STRONGMEM="${BOX64_DYNAREC_STRONGMEM:-1}"
-export BOX64_DYNAREC_SAFEFLAGS="${BOX64_DYNAREC_SAFEFLAGS:-0}"
+export BOX64_DYNAREC_BIGBLOCK="${BOX64_DYNAREC_BIGBLOCK:-0}"       # Critical for Unity games with JIT
+export BOX64_DYNAREC_STRONGMEM="${BOX64_DYNAREC_STRONGMEM:-2}"    # Stricter memory ordering
+export BOX64_DYNAREC_SAFEFLAGS="${BOX64_DYNAREC_SAFEFLAGS:-1}"    # Safer x86 flag handling
 export BOX64_DYNAREC_FASTNAN="${BOX64_DYNAREC_FASTNAN:-1}"
 export BOX64_DYNAREC_FASTROUND="${BOX64_DYNAREC_FASTROUND:-1}"
 export BOX64_DYNAREC_X87DOUBLE="${BOX64_DYNAREC_X87DOUBLE:-1}"
+export BOX64_DYNAREC_CALLRET="${BOX64_DYNAREC_CALLRET:-1}"        # Optimize CALL/RET instructions
+export BOX64_DYNACACHE="${BOX64_DYNACACHE:-1}"                    # Enable dynarec cache
 export BOX64_MAXCPU="${BOX64_MAXCPU:-4}"
 export BOX64_LOG="${BOX64_LOG:-0}"
 
@@ -49,7 +51,17 @@ export BOX86_DYNAREC_STRONGMEM="${BOX86_DYNAREC_STRONGMEM:-1}"
 export BOX86_LOG="${BOX86_LOG:-0}"
 
 # Ensure directories exist (init.sh already fixed ownership as root)
-mkdir -p /data/server /data/save-data /data/wine-prefix
+mkdir -p /data/server /data/save-data /data/wine-prefix /data/backups
+
+# Log rotation for server.log (prevent disk exhaustion)
+if [ -f "/data/server.log" ]; then
+    SIZE=$(stat -c%s "/data/server.log" 2>/dev/null || echo 0)
+    # Rotate if exceeds 100MB
+    if [ "$SIZE" -gt 104857600 ]; then
+        echo "--- Rotating server.log (size: $SIZE bytes) ---"
+        mv /data/server.log /data/server.log.1
+    fi
+fi
 
 # Export Wine Environment
 export WINEPREFIX="/data/wine-prefix"
