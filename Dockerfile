@@ -14,6 +14,12 @@ RUN dpkg --add-architecture armhf \
     software-properties-common \
     xvfb \
     xz-utils \
+    cabextract \
+    tar \
+    unzip \
+    locales \
+    file \
+    # ARM64 libraries for Box64 (Wine x86_64 emulation)
     libgl1 \
     libx11-6 \
     libfontconfig1 \
@@ -25,10 +31,23 @@ RUN dpkg --add-architecture armhf \
     libxrandr2 \
     libxxf86vm1 \
     libfreetype6 \
-    cabextract \
-    tar \
-    unzip \
-    locales \
+    libglu1-mesa \
+    libosmesa6 \
+    libxext6 \
+    libxfixes3 \
+    libasound2 \
+    libpulse0 \
+    libdbus-1-3 \
+    libsm6 \
+    libxslt1.1 \
+    libxml2 \
+    liblcms2-2 \
+    libgnutls30 \
+    libmpg123-0 \
+    libopenal1 \
+    libncurses6 \
+    libvulkan1 \
+    # armhf libraries for Box86 (SteamCMD i386 emulation)
     libc6:armhf \
     libstdc++6:armhf \
     libncurses6:armhf \
@@ -43,12 +62,29 @@ RUN wget https://ryanfortner.github.io/box86-debs/box86.list -O /etc/apt/sources
     && apt-get install -y box64 box86-generic-arm:armhf \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Wine x86_64 (using Kron4ek's builds for portable usage)
-# We use a specific version known to be stable with V Rising if possible, but latest staging is usually good.
+# Install Wine x86_64 (using Kron4ek's builds)
+# Using staging build which has better game compatibility
 RUN mkdir -p /opt/wine \
-    && wget -q https://github.com/Kron4ek/Wine-Builds/releases/download/9.0/wine-9.0-amd64.tar.xz -O /tmp/wine.tar.xz \
+    && wget -q https://github.com/Kron4ek/Wine-Builds/releases/download/9.22/wine-9.22-staging-amd64.tar.xz -O /tmp/wine.tar.xz \
     && tar -xf /tmp/wine.tar.xz -C /opt/wine --strip-components=1 \
     && rm /tmp/wine.tar.xz
+
+# Create Box64 wrappers for Wine binaries
+# This ensures Wine binaries are always run through Box64
+RUN mkdir -p /usr/local/bin \
+    && echo '#!/bin/bash' > /usr/local/bin/wine64 \
+    && echo 'export BOX64_LOG=1' >> /usr/local/bin/wine64 \
+    && echo 'exec box64 /opt/wine/bin/wine64 "$@"' >> /usr/local/bin/wine64 \
+    && chmod +x /usr/local/bin/wine64 \
+    && echo '#!/bin/bash' > /usr/local/bin/wine \
+    && echo 'exec box64 /opt/wine/bin/wine "$@"' >> /usr/local/bin/wine \
+    && chmod +x /usr/local/bin/wine \
+    && echo '#!/bin/bash' > /usr/local/bin/wineserver \
+    && echo 'exec box64 /opt/wine/bin/wineserver "$@"' >> /usr/local/bin/wineserver \
+    && chmod +x /usr/local/bin/wineserver \
+    && echo '#!/bin/bash' > /usr/local/bin/wineboot \
+    && echo 'exec box64 /opt/wine/bin/wineboot "$@"' >> /usr/local/bin/wineboot \
+    && chmod +x /usr/local/bin/wineboot
 
 # Install SteamCMD (Linux x86 32-bit, runs via box86)
 RUN mkdir -p $STEAMCMD_DIR \
@@ -56,30 +92,24 @@ RUN mkdir -p $STEAMCMD_DIR \
     && curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - \
     && chmod +x steamcmd.sh
 
-# Generate locales to silence steamcmd errors
+# Generate locales
 RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
 ENV LANG=en_US.UTF-8
 
-# Setup Box86 as binfmt handler for i386 binaries
-# This makes Linux kernel automatically use box86 for any 32-bit x86 ELF executable
-RUN echo ':BOX86:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x03\x00:\xff\xff\xff\xff\xff\xfe\xfe\x00\x00\x00\x00\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/local/bin/box86:' > /usr/share/binfmts/box86
-
-# Create wrapper that explicitly calls box86 (as fallback if binfmt doesn't work in container)
+# Create wrapper for steamcmd
 RUN echo '#!/bin/bash' > /usr/bin/steamcmd \
     && echo 'cd /usr/games/steamcmd' >> /usr/bin/steamcmd \
     && echo 'exec box86 ./linux32/steamcmd "$@"' >> /usr/bin/steamcmd \
     && chmod +x /usr/bin/steamcmd
 
-# Bootstrap SteamCMD during build to download updates
-# We do NOT rename/wrap the binary anymore - let it update naturally
-# The /usr/bin/steamcmd wrapper always calls box86 explicitly
-RUN cd /usr/games/steamcmd && box86 ./linux32/steamcmd +quit || echo "Bootstrap complete (exit ok)"
+# Bootstrap SteamCMD during build
+RUN cd /usr/games/steamcmd && box86 ./linux32/steamcmd +quit || echo "Bootstrap complete"
 
 # Setup directory structure
 WORKDIR /data
 VOLUME /data
 
-# Link start script
+# Copy start script
 COPY start.sh /usr/local/bin/start.sh
 RUN chmod +x /usr/local/bin/start.sh
 

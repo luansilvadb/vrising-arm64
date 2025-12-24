@@ -106,11 +106,15 @@ echo "WINEARCH=$WINEARCH"
 
 # Initialize Wine prefix if needed
 echo "--- Initializing Wine prefix (if needed) ---"
-box64 /opt/wine/bin/wineboot --init 2>&1 || echo "Wineboot init returned: $?"
+# Use wrapper script which handles box64 invocation
+wineboot --init 2>&1 || echo "Wineboot init returned: $?"
 
-# Launch via Box64 -> Wine64
-echo "--- Executing VRisingServer.exe via box64 wine64 ---"
-box64 /opt/wine/bin/wine64 ./VRisingServer.exe \
+# Wait for wineserver to be ready
+sleep 2
+
+# Launch via wine64 wrapper (which uses box64)
+echo "--- Executing VRisingServer.exe via wine64 ---"
+wine64 ./VRisingServer.exe \
     -persistentDataPath "Z:\\data\\save-data" \
     -serverName "$SERVER_NAME" \
     -saveName "$SAVE_NAME" \
