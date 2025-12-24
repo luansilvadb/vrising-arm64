@@ -1,0 +1,54 @@
+# VRising ARM64 - SteamCMD LINUX NATIVO (via FEX)
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 1. Dependências base
+RUN apt-get update && apt-get install -y \
+    ca-certificates curl wget lib32gcc-s1 \
+    xvfb squashfs-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+# 2. FEX-Emu
+RUN add-apt-repository -y ppa:fex-emu/fex && \
+    apt-get update && \
+    apt-get install -y fex-emu-armv8.0 && \
+    rm -rf /var/lib/apt/lists/*
+
+# 3. Usuário
+RUN useradd -u 1000 -m vrising && \
+    mkdir -p /app /data /steam /steamcmd && \
+    chown -R vrising:vrising /app /data /steam /steamcmd
+
+# 4. Baixa RootFS (para Wine executar VRisingServer.exe)
+ENV ROOTFS_DIR="/opt/fex-rootfs"
+RUN wget -q -O /tmp/rootfs.sqsh \
+    "https://rootfs.fex-emu.gg/Ubuntu_22_04/2025-01-08/Ubuntu_22_04.sqsh" && \
+    unsquashfs -d "$ROOTFS_DIR" /tmp/rootfs.sqsh && \
+    rm /tmp/rootfs.sqsh
+
+# 5. Symlinks Wine (necessário apenas para EXECUTAR o servidor)
+RUN ln -sf "$ROOTFS_DIR" /home/vrising/.fex-emu/RootFS && \
+    ln -sf "$ROOTFS_DIR"/usr/share/wine /usr/share/wine && \
+    ln -sf "$ROOTFS_DIR"/usr/lib/wine /usr/lib/wine && \
+    chown -R vrising:vrising /home/vrising
+
+# 6. SteamCMD Linux (32-bit via FEX, SEM Wine!)
+USER vrising
+WORKDIR /steamcmd
+RUN curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar xzf - && \
+    chmod +x steamcmd.sh linux32/steamcmd
+
+# 7. Scripts
+COPY --chown=vrising:vrising entrypoint.native.sh /app/entrypoint.sh
+COPY --chown=vrising:vrising wine-wrapper.sh /app/
+RUN chmod +x /app/*.sh
+
+WORKDIR /app
+
+ENV FEX_ROOTFS="/opt/fex-rootfs"
+ENV HOME="/home/vrising"
+
+EXPOSE 27015/udp 27016/udp
+
+ENTRYPOINT ["/app/entrypoint.sh"]
