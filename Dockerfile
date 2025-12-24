@@ -16,6 +16,15 @@ RUN dpkg --add-architecture armhf \
     xz-utils \
     libgl1 \
     libx11-6 \
+    libfontconfig1 \
+    libxinerama1 \
+    libxrender1 \
+    libxcomposite1 \
+    libxi6 \
+    libxcursor1 \
+    libxrandr2 \
+    libxxf86vm1 \
+    libfreetype6 \
     cabextract \
     tar \
     unzip \
