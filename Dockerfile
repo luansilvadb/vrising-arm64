@@ -34,17 +34,11 @@ RUN useradd -u 1000 -m -s /bin/bash vrising && \
     mkdir -p /app /data /steam /home/vrising/.fex-emu && \
     chown -R vrising:vrising /app /data /steam /home/vrising/.fex-emu
 
-# 4. Baixa RootFS via FEXRootFSFetcher usando expect para automação
+# 4. Baixa RootFS via FEXRootFSFetcher com respostas automáticas
 USER vrising
-RUN expect -c ' \
-    set timeout 1800; \
-    spawn FEXRootFSFetcher; \
-    expect "Enter selection:" { send "1\r" }; \
-    expect "Would you like to extract" { send "n\r" }; \
-    expect "Extract as default" { send "n\r" }; \
-    expect "Set as default" { send "y\r" }; \
-    expect eof \
-    ' || echo "Warning: FEXRootFSFetcher may have issues, continuing..."
+# Respostas: y (baixar), 0 (primeira opção), n (não extrair), y (usar como default)
+RUN printf 'y\n0\nn\ny\n' | FEXRootFSFetcher || \
+    echo "Warning: FEXRootFSFetcher may have issues, continuing..."
 
 # 5. Copia scripts (volta para root temporariamente)
 USER root
