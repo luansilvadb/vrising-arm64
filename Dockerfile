@@ -4,7 +4,7 @@
 # Este Dockerfile cria uma imagem ARM64 para rodar o servidor dedicado de 
 # V Rising usando Box64/Box86 + Wine para emulação x86/x64.
 #
-# Testado em: Oracle Cloud ARM64 (Ampere A1) com Ubuntu 22.04
+# Testado em: Oracle Cloud ARM64 (Ampere A1) com Ubuntu 20.04
 # =============================================================================
 
 FROM debian:bookworm-slim

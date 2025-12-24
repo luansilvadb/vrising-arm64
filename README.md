@@ -13,7 +13,7 @@ Servidor dedicado de **V Rising** otimizado para rodar em **ARM64** (Oracle Clou
 | **CPU** | 2 cores ARM64 | 4 cores ARM64 |
 | **RAM** | 8 GB | 16-24 GB |
 | **Disco** | 10 GB | 20 GB SSD |
-| **SO** | Ubuntu 22.04 ARM64 | Debian 12 ARM64 |
+| **SO** | Ubuntu 20.04 ARM64 | Ubuntu 22.04+ ARM64 |
 
 > ⚠️ **Nota**: Este servidor usa emulação x86/x64 via Box64/Box86, o que adiciona overhead de ~20-40% de CPU comparado a um servidor nativo.
 
