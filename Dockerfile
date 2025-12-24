@@ -30,9 +30,8 @@ RUN add-apt-repository -y ppa:fex-emu/fex && \
 # 3. Cria usuário não-root e diretórios
 RUN useradd -u 1000 -m -s /bin/bash vrising && \
     mkdir -p /app /data /steam \
-             /home/vrising/.fex-emu \
-             /opt/fex-rootfs && \
-    chown -R vrising:vrising /app /data /steam /home/vrising /opt/fex-rootfs
+             /home/vrising/.fex-emu && \
+    chown -R vrising:vrising /app /data /steam /home/vrising
 
 # 4. Baixa e EXTRAI RootFS Ubuntu 22.04 (evita necessidade de FUSE)
 USER root
