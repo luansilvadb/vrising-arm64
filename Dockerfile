@@ -53,9 +53,19 @@ RUN echo '#!/bin/bash' > /usr/bin/steamcmd \
     && echo 'box86 /usr/games/steamcmd/linux32/steamcmd "$@"' >> /usr/bin/steamcmd \
     && chmod +x /usr/bin/steamcmd
 
-# Bootstrap SteamCMD to prevent runtime update loop
-# We accept the error "ILocalize::AddFile() failed" as cosmetic.
-RUN steamcmd +quit || true
+# Generate locales to silence steamcmd errors
+RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
+ENV LANG en_US.UTF-8
+
+# Bootstrap SteamCMD to prevent runtime update loop and patch binary for Box86
+# 1. Run update once to get latest binary
+# 2. Rename real binary to steamcmd.orig
+# 3. Create wrapper script in place of binary to force Box86 usage on re-exec
+RUN steamcmd +quit || true \
+    && mv /usr/games/steamcmd/linux32/steamcmd /usr/games/steamcmd/linux32/steamcmd.orig \
+    && echo '#!/bin/bash' > /usr/games/steamcmd/linux32/steamcmd \
+    && echo 'box86 /usr/games/steamcmd/linux32/steamcmd.orig "$@"' >> /usr/games/steamcmd/linux32/steamcmd \
+    && chmod +x /usr/games/steamcmd/linux32/steamcmd
 
 # Setup directory structure
 WORKDIR /data
