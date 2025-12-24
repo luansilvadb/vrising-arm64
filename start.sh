@@ -5,6 +5,17 @@
 echo "--- V Rising ARM64 Server Startup ---"
 echo "--- $(date) ---"
 
+# Graceful shutdown handler
+cleanup() {
+    echo ""
+    echo "--- Received shutdown signal ($(date)) ---"
+    echo "--- Saving game and stopping Wine processes... ---"
+    wineserver -k 2>/dev/null || true
+    echo "--- Cleanup complete, exiting ---"
+    exit 0
+}
+trap cleanup SIGTERM SIGINT SIGHUP
+
 # Default server configuration (fallback if not set via environment)
 SERVER_NAME="${SERVER_NAME:-"V Rising Server"}"
 SAVE_NAME="${SAVE_NAME:-"world1"}"
@@ -100,8 +111,8 @@ if [ ! -f "/data/server/VRisingServer.exe" ]; then
     which steamcmd
     file $(which steamcmd)
     echo ""
-    echo "--- Sleeping to allow log inspection ---"
-    sleep infinity
+    echo "--- Exiting with error to trigger restart policy ---"
+    exit 1
 fi
 
 echo "--- Download verified successfully ---"
@@ -119,8 +130,8 @@ if [ ! -f "./VRisingServer.exe" ]; then
     echo "ERROR: VRisingServer.exe not found in /data/server!"
     echo "Contents of /data/server:"
     ls -la /data/server/
-    echo "--- Sleeping to prevent restart loop ---"
-    sleep infinity
+    echo "--- Exiting with error ---"
+    exit 1
 fi
 
 echo "--- Files in server directory ---"
