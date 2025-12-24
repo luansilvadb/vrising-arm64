@@ -45,10 +45,10 @@ RUN apt install -y \
     libasound2 \
     libglib2.0-0 || true
 
-# Install FEX-Emu from official PPA
+# Install FEX-Emu from official PPA (use armv8.0 for widest compatibility)
 RUN add-apt-repository -y ppa:fex-emu/fex && \
     apt update -y && \
-    apt install -y fex-emu
+    apt install -y fex-emu-armv8.0
 
 # Setup FEX RootFS for x86/x86_64 support (using Ubuntu image)
 # Run as root first to fetch RootFS
