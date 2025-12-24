@@ -39,7 +39,7 @@ services:
     # Volumes (persistência)
     volumes:
       - vrising_saves:/data/saves
-      - steam_cache:/data/steam
+      - steam_cache:/data/server
       - fex_jit_cache:/data/fex-jit
       - ./logs:/data/logs
 
