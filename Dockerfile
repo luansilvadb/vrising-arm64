@@ -101,18 +101,20 @@ RUN mkdir -p /usr/local/bin \
     && chmod +x /usr/local/bin/wineboot
 
 # Pre-initialize Wine prefix during build (prevents kernel32.dll errors)
-# Using Xvfb to provide a virtual display
+# Using Xvfb to provide a virtual display - simplified to avoid hanging
 RUN mkdir -p /root/.wine /tmp/.X11-unix \
     && bash -c '\
         export WINEPREFIX=/root/.wine; \
         export WINEARCH=win64; \
         export WINEDEBUG=-all; \
+        export BOX64_LOG=0; \
         Xvfb :99 -screen 0 1024x768x24 & \
+        XVFB_PID=$!; \
         sleep 2; \
         export DISPLAY=:99; \
-        box64 /opt/wine/bin/wineboot --init || true; \
-        box64 /opt/wine/bin/wineserver --wait || true; \
-        pkill Xvfb || true; \
+        timeout 60 box64 /opt/wine/bin/wineboot --init || true; \
+        timeout 10 box64 /opt/wine/bin/wineserver --wait || true; \
+        kill $XVFB_PID 2>/dev/null || true; \
     '
 
 # Install SteamCMD (Linux x86 32-bit, runs via box86)
