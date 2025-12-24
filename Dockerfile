@@ -2,7 +2,7 @@
 # V Rising Dedicated Server - ARM64 Docker Image
 # =============================================================================
 # Este Dockerfile cria uma imagem ARM64 para rodar o servidor dedicado de 
-# V Rising usando Box64/Box86 + Wine para emulação x86/x64.
+# V Rising usando Box64 + Wine WOW64 para emulação x86/x64.
 #
 # Testado em: Oracle Cloud ARM64 (Ampere A1) com Ubuntu 20.04
 # =============================================================================
@@ -42,11 +42,13 @@ ENV DEBIAN_FRONTEND=noninteractive \
     WINEDEBUG="-all" \
     # Display virtual
     DISPLAY=":0" \
-    # Box settings
+    # Box settings - habilitar WOW64
     BOX86_LOG="0" \
     BOX64_LOG="0" \
     BOX86_NOBANNER="1" \
-    BOX64_NOBANNER="1"
+    BOX64_NOBANNER="1" \
+    BOX64_WINE_PRELOADED="1" \
+    BOX64_LD_LIBRARY_PATH="/opt/wine/lib/wine/x86_64-unix:/opt/wine/lib"
 
 # =============================================================================
 # Instalação de dependências adicionais
@@ -62,6 +64,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     netcat-openbsd \
     procps \
     locales \
+    # Bibliotecas adicionais para Wine
+    libfreetype6 \
+    libfontconfig1 \
+    libxext6 \
+    libxrender1 \
+    libsm6 \
     && rm -rf /var/lib/apt/lists/* \
     && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen 2>/dev/null || true \
     && locale-gen 2>/dev/null || true
@@ -71,13 +79,16 @@ ENV LANG=en_US.UTF-8 \
     LC_ALL=en_US.UTF-8
 
 # =============================================================================
-# Instalar Wine x64 (será executado via Box64)
+# Instalar Wine 9.x com WOW64 (versão que funciona melhor com Box64)
 # =============================================================================
 RUN mkdir -p /opt/wine && \
     cd /tmp && \
-    wget -q "https://github.com/Kron4ek/Wine-Builds/releases/download/8.0.2/wine-8.0.2-amd64.tar.xz" -O wine.tar.xz && \
+    # Usar Wine 9.0 com WOW64 experimental
+    wget -q "https://github.com/Kron4ek/Wine-Builds/releases/download/9.0/wine-9.0-amd64-wow64.tar.xz" -O wine.tar.xz && \
     tar -xf wine.tar.xz -C /opt/wine --strip-components=1 && \
-    rm wine.tar.xz
+    rm wine.tar.xz && \
+    # Verificar arquivos
+    ls -la /opt/wine/bin/
 
 # =============================================================================
 # Instalar SteamCMD (versão Linux x86)
