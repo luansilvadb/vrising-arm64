@@ -53,6 +53,10 @@ RUN echo '#!/bin/bash' > /usr/bin/steamcmd \
     && echo 'box86 /usr/games/steamcmd/linux32/steamcmd "$@"' >> /usr/bin/steamcmd \
     && chmod +x /usr/bin/steamcmd
 
+# Bootstrap SteamCMD to prevent runtime update loop
+# We accept the error "ILocalize::AddFile() failed" as cosmetic.
+RUN steamcmd +quit || true
+
 # Setup directory structure
 WORKDIR /data
 VOLUME /data
