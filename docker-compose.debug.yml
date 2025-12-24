@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  vrising:
+    build:
+      context: .
+      dockerfile: Dockerfile.native
+    image: vrising-arm64:debug
+    container_name: vrising-debug
+    
+    ports:
+      - "27015:27015/udp"
+      - "27016:27016/udp"
+    
+    volumes:
+      - ./data:/data
+      - ./steam:/steam
+    
+    environment:
+      VR_SERVER_NAME: "VRising-ARM64-Debug"
+      VR_SAVE_NAME: "world1"
+      VR_GAME_PORT: "27015"
+      VR_QUERY_PORT: "27016"
+    
+    # Aumenta limites e desabilita restart automático para debug
+    mem_limit: 4g
+    cpus: 2
+    restart: "no"  # NÃO reinicia automaticamente
+    
+    # Logs detalhados
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"

@@ -41,7 +41,7 @@ RUN curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.t
     chmod +x steamcmd.sh linux32/steamcmd
 
 # 7. Scripts
-COPY --chown=vrising:vrising entrypoint.native.sh /app/entrypoint.sh
+COPY --chown=vrising:vrising entrypoint.debug.sh /app/entrypoint.sh
 COPY --chown=vrising:vrising wine-wrapper.sh /app/
 RUN chmod +x /app/*.sh
 
