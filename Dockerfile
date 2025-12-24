@@ -19,26 +19,10 @@ RUN apt update -y && \
     xvfb \
     xserver-xorg-video-dummy \
     cabextract \
-    git \
-    cmake \
-    ninja-build \
-    build-essential \
-    pkg-config \
-    ccache \
-    clang \
-    llvm \
-    lld \
     binfmt-support \
-    libsdl2-dev \
-    libepoxy-dev \
-    libssl-dev \
-    python3 \
-    python3-setuptools \
-    python-is-python3 \
     squashfs-tools \
     squashfuse \
     fuse \
-    libc-bin \
     sudo
 
 # Install native X11 and graphics libraries
@@ -61,26 +45,15 @@ RUN apt install -y \
     libasound2 \
     libglib2.0-0 || true
 
-# Install FEX-Emu from official PPA (better compatibility than Box86 for SteamCMD)
+# Install FEX-Emu from official PPA
 RUN add-apt-repository -y ppa:fex-emu/fex && \
     apt update -y && \
-    apt install -y fex-emu-arm64ec fex-emu-binfmt32 fex-emu-binfmt64 || \
-    apt install -y fex-emu || \
-    (echo "FEX PPA failed, building from source..." && \
-    cd /tmp && \
-    git clone --recurse-submodules https://github.com/FEX-Emu/FEX.git && \
-    cd FEX && \
-    mkdir Build && \
-    cd Build && \
-    CC=clang CXX=clang++ cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DENABLE_LTO=True -DBUILD_TESTS=False -G Ninja .. && \
-    ninja && \
-    ninja install && \
-    ninja binfmt_misc_32 && \
-    ninja binfmt_misc_64 && \
-    cd / && rm -rf /tmp/FEX)
+    apt install -y fex-emu
 
-# Setup FEX RootFS for x86/x86_64 support
-RUN FEXRootFSFetcher -y -x || echo "RootFS fetch skipped or failed, will use thunk mode"
+# Setup FEX RootFS for x86/x86_64 support (using Ubuntu image)
+# Run as root first to fetch RootFS
+RUN mkdir -p /root/.fex-emu && \
+    FEXRootFSFetcher -y || echo "RootFS fetch completed or skipped"
 
 # Setup Steam user with proper permissions
 RUN useradd -m -s /bin/bash steam && \
@@ -92,6 +65,10 @@ RUN useradd -m -s /bin/bash steam && \
     mkdir -p /mnt/vrising/persistentdata && \
     chown -R steam:steam /home/steam && \
     chown -R steam:steam /mnt/vrising
+
+# Copy FEX config to steam user (use same RootFS)
+RUN cp -r /root/.fex-emu/* /home/steam/.fex-emu/ 2>/dev/null || true && \
+    chown -R steam:steam /home/steam/.fex-emu
 
 # Download and setup Wine for x86_64 (using FEX-Emu)
 RUN mkdir -p /opt/wine && \
@@ -115,17 +92,14 @@ RUN mkdir -p /home/steam/steamcmd && \
 
 # Configure FEX for steam user
 RUN mkdir -p /home/steam/.fex-emu && \
-    echo '{"Config":{"RootFS":""}}' > /home/steam/.fex-emu/Config.json || true
+    FEXRootFSFetcher -y || true
 
 # Switch back to root for final setup
 USER root
 
 # Create wrapper scripts
-RUN echo '#!/bin/bash\nFEXBash /home/steam/steamcmd/steamcmd.sh "$@"' > /usr/local/bin/steamcmd && \
-    chmod +x /usr/local/bin/steamcmd
-
-RUN echo '#!/bin/bash\nFEXInterpreter /opt/wine/wine/bin/wine64 "$@"' > /usr/local/bin/wine64 && \
-    chmod +x /usr/local/bin/wine64
+RUN echo '#!/bin/bash\nFEXBash "$@"' > /usr/local/bin/run-x86 && \
+    chmod +x /usr/local/bin/run-x86
 
 # Add Wine environment variables
 ENV WINEARCH=win64
