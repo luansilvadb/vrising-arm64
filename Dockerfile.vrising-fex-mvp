@@ -1,0 +1,76 @@
+# Dockerfile.vrising-fex-mvp
+# Build: docker build -f Dockerfile.vrising-fex-mvp -t vrising-fex-mvp:latest .
+
+FROM ubuntu:22.04 AS build-stage
+
+# Build FEX-Emu otimizado para Ampere Altra
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y \
+    build-essential cmake ninja-build llvm-15-dev libclang-15-dev \
+    libtalloc-dev libglfw3-dev libvulkan-dev git ca-certificates python3
+
+WORKDIR /build
+RUN git clone --depth 1 --branch v2405 https://github.com/FEX-Emu/FEX.git
+WORKDIR /build/FEX
+RUN cmake -B Build -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_CXX_FLAGS="-mcpu=neoverse-n1 -O3 -flto" \
+    -DENABLE_VIXL_SIMULATOR=OFF \
+    -DENABLE_LTO=ON \
+    -DENABLE_JIT=ON
+RUN cmake --build Build/ -j$(nproc) && cmake --install Build/ --prefix /opt/fex
+
+# Prepara RootFS mínimo x86_64
+RUN apt-get install -y debootstrap qemu-user-static
+WORKDIR /rootfs
+RUN debootstrap --arch=amd64 --include=wget,curl,jq jammy /rootfs/jammy-rootfs http://archive.ubuntu.com/ubuntu/
+# Instala Wine Staging (headless)
+RUN chroot /rootfs/jammy-rootfs /bin/bash -c "\
+    dpkg --add-architecture i386 && \
+    wget -O- https://dl.winehq.org/wine-builds/winehq.key | apt-key add - && \
+    apt-add-repository 'deb https://dl.winehq.org/wine-builds/ubuntu/ jammy main' && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends winehq-staging winetricks && \
+    apt-get clean"
+
+# Runtime stage minimal
+FROM ubuntu:22.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libtalloc2 libglfw3 libvulkan1 ca-certificates curl wget netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copia FEX e RootFS
+COPY --from=build-stage /opt/fex /opt/fex
+COPY --from=build-stage /rootfs/jammy-rootfs /opt/fex-rootfs
+
+# Usuário não-root
+RUN useradd -u 10000 -m -s /bin/bash vrising && \
+    mkdir -p /app /data/steam /data/saves /data/fex-jit /tmp/wine && \
+    chown -R vrising:vrising /app /data /tmp/wine
+
+# Configura FEX para performance máxima
+USER vrising
+RUN mkdir -p /home/vrising/.fex-emu && \
+    echo '{"RootFS":"/opt/fex-rootfs","ThreadRipperMode":true,"Multiblock":"2","MaxJITBlockSize":65536,"AOTIRGenerate":true,"AOTIRLoad":true,"AOTIRCapture":"/data/fex-jit"}' > /home/vrising/.fex-emu/Config.json
+
+# Scripts inline (menor overhead de COPY)
+RUN echo '#!/bin/bash\n\
+    set -e\n\
+    export WINEPREFIX=/tmp/wine\n\
+    export WINEDEBUG=-all\n\
+    export WINEDLLOVERRIDES="winemenubuilder.exe=d"\n\
+    export FEX_JITBLOCKS=65536\n\
+    export FEX_MULTIBLOCK=2\n\
+    export FEX_FASTREP=1\n\
+    export FEX_AOTIRCAPTURE=/data/fex-jit\n\
+    if [ ! -f "$WINEPREFIX/system.reg" ]; then wineboot -u; fi\n\
+    /opt/fex/bin/FEXInterpreter /opt/fex-rootfs/usr/bin/wine "'"$@"'"' > /app/wine-launcher.sh && chmod +x /app/wine-launcher.sh
+
+WORKDIR /app
+USER vrising
+EXPOSE 27015/udp 27016/udp
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
+    CMD netstat -ulnp | grep -q :27015 || exit 1
+
+ENTRYPOINT ["/bin/bash", "-c"]
