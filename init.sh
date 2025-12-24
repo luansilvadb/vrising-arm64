@@ -21,7 +21,7 @@ fi
 
 # Ensure the required directories exist with correct ownership
 mkdir -p /data/server /data/save-data /data/wine-prefix
-chown -R $TARGET_UID:$TARGET_GID /data
+# chown already done above for /data, no need to repeat
 
 echo "--- Permissions fixed. Dropping to user $TARGET_USER ---"
 

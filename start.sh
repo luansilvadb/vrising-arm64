@@ -119,7 +119,7 @@ if [ ! -d "$WINEPREFIX/drive_c" ]; then
     # If we have a pre-baked prefix in home, use it to speed up start
     if [ -d "/home/vrising/.wine" ]; then
         echo "--- Copying pre-initialized Wine prefix from image... ---"
-        cp -r /home/vrising/.wine/* "$WINEPREFIX/" 2>/dev/null || true
+        cp -a /home/vrising/.wine/* "$WINEPREFIX/" 2>/dev/null || true
     fi
     
     echo "--- Finalizing Wineboot ---"

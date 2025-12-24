@@ -21,15 +21,19 @@ services:
       - SKIP_UPDATE=0
       
       # Box64 Performance Optimization (4 cores ARM)
+      # NOTE: Current settings prioritize PERFORMANCE over STABILITY.
+      # If experiencing crashes, change:
+      #   BOX64_DYNAREC_SAFEFLAGS=1 (safer flag handling)
+      #   BOX64_DYNAREC_STRONGMEM=2 (stricter memory ordering)
       - BOX64_DYNAREC=1
       - BOX64_DYNAREC_BIGBLOCK=3
-      - BOX64_DYNAREC_STRONGMEM=1
-      - BOX64_DYNAREC_SAFEFLAGS=0
+      - BOX64_DYNAREC_STRONGMEM=1    # Use 2 for more stability
+      - BOX64_DYNAREC_SAFEFLAGS=0    # Use 1 for more stability
       - BOX64_DYNAREC_FASTNAN=1
       - BOX64_DYNAREC_FASTROUND=1
       - BOX64_DYNAREC_X87DOUBLE=1
       - BOX64_MAXCPU=4
-      - BOX64_LOG=0 # Keep logging low in production
+      - BOX64_LOG=0  # Keep logging low in production
       
       # Box86 Optimization (for SteamCMD)
       - BOX86_DYNAREC=1
@@ -74,9 +78,9 @@ services:
         max-size: "10m"
         max-file: "3"
     
-    # Health check - lighter weight check
+    # Health check - verify process AND port is listening
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f VRisingServer.exe || exit 1"]
+      test: ["CMD-SHELL", "pgrep -f VRisingServer.exe && ss -uln | grep -q ':9876' || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3

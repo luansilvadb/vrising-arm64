@@ -1,5 +1,11 @@
 FROM ubuntu:22.04
 
+# Container metadata
+LABEL org.opencontainers.image.title="V Rising ARM64"
+LABEL org.opencontainers.image.version="1.0"
+LABEL org.opencontainers.image.description="V Rising Dedicated Server for ARM64 using Box64/Wine"
+LABEL org.opencontainers.image.source="https://github.com/your-repo/vrising-arm64"
+
 # Build arguments for versioning
 ARG BOX86_VERSION=generic-arm
 ARG WINE_VERSION=9.22
@@ -11,7 +17,7 @@ ENV STEAMCMD_DIR="/usr/games/steamcmd" \
     # Box64 optimization for Wine compatibility
     BOX64_DYNAREC_SAFEFLAGS=1 \
     BOX64_DYNAREC_STRONGMEM=2 \
-    BOX64_LOG=1 \
+    BOX64_LOG=0 \
     BOX64_MAXCPU=64 \
     # Locale
     LANG=en_US.UTF-8 \
@@ -108,12 +114,14 @@ RUN mkdir -p /home/vrising/.wine /tmp/.X11-unix \
 COPY --chown=vrising:vrising start.sh /usr/local/bin/start.sh
 RUN chmod +x /usr/local/bin/start.sh
 
+# Switch to root for init script and cleanup
+USER root
+
 # Copy init script (runs as root to fix permissions, then drops to vrising)
 COPY init.sh /usr/local/bin/init.sh
 RUN chmod +x /usr/local/bin/init.sh
 
 # Cleanup /tmp just in case
-USER root
 RUN rm -rf /tmp/.X11-unix
 
 WORKDIR /data
