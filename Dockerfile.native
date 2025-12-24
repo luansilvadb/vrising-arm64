@@ -28,7 +28,8 @@ RUN wget -q -O /tmp/rootfs.sqsh \
     rm /tmp/rootfs.sqsh
 
 # 5. Symlinks Wine (necessário apenas para EXECUTAR o servidor)
-RUN ln -sf "$ROOTFS_DIR" /home/vrising/.fex-emu/RootFS && \
+RUN mkdir -p /home/vrising/.fex-emu && \
+    ln -sf "$ROOTFS_DIR" /home/vrising/.fex-emu/RootFS && \
     ln -sf "$ROOTFS_DIR"/usr/share/wine /usr/share/wine && \
     ln -sf "$ROOTFS_DIR"/usr/lib/wine /usr/lib/wine && \
     chown -R vrising:vrising /home/vrising
