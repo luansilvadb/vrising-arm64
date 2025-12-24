@@ -45,13 +45,20 @@ RUN echo "=== Downloading FEX RootFS ===" && \
     echo "=== RootFS extracted ===" && \
     ls -la "${ROOTFS_DIR}/usr/bin/" | grep -i wine | head -10
 
-# 5. Cria symlink no local padrão do FEX E para root também
+# 5. Cria symlinks:
+#    - FEX RootFS no local padrão
+#    - Wine dirs no HOST para que Wine encontre wine.inf
 RUN ln -sf "${ROOTFS_DIR}" /home/vrising/.fex-emu/RootFS && \
     mkdir -p /root/.fex-emu && \
     ln -sf "${ROOTFS_DIR}" /root/.fex-emu/RootFS && \
+    # Symlinks para Wine encontrar seus arquivos no host
+    ln -sf "${ROOTFS_DIR}/usr/share/wine" /usr/share/wine && \
+    ln -sf "${ROOTFS_DIR}/usr/lib/wine" /usr/lib/wine && \
+    ln -sf "${ROOTFS_DIR}/etc/alternatives" /etc/alternatives 2>/dev/null || true && \
     chown -R vrising:vrising /home/vrising/.fex-emu && \
-    echo "=== RootFS symlinks created ===" && \
-    ls -la /home/vrising/.fex-emu/
+    echo "=== Symlinks created ===" && \
+    ls -la /usr/share/wine /usr/lib/wine 2>/dev/null || echo "Wine symlinks check" && \
+    ls -la "${ROOTFS_DIR}/usr/share/wine/wine/" | head -5
 
 # 6. Copia scripts
 COPY --chown=vrising:vrising entrypoint.sh /app/
@@ -62,7 +69,8 @@ WORKDIR /app
 USER vrising
 
 # Variáveis de ambiente - FEX_ROOTFS é lida pelo FEX
-ENV FEX_ROOTFS="${ROOTFS_DIR}"
+# Usamos path hardcoded para garantir que funcione
+ENV FEX_ROOTFS="/opt/fex-rootfs"
 ENV HOME="/home/vrising"
 
 EXPOSE 27015/udp 27016/udp
