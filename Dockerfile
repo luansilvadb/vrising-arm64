@@ -47,8 +47,10 @@ RUN mkdir -p $STEAMCMD_DIR \
     && chmod +x steamcmd.sh
 
 # Create a wrapper for steamcmd to ensure it runs via box86 and is in PATH
+# We must bypass steamcmd.sh because it tries to detect arch and run natively.
+# We point directly to the 32-bit binary.
 RUN echo '#!/bin/bash' > /usr/bin/steamcmd \
-    && echo 'box86 /usr/games/steamcmd/steamcmd.sh "$@"' >> /usr/bin/steamcmd \
+    && echo 'box86 /usr/games/steamcmd/linux32/steamcmd "$@"' >> /usr/bin/steamcmd \
     && chmod +x /usr/bin/steamcmd
 
 # Setup directory structure
