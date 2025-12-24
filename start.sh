@@ -13,11 +13,22 @@ echo "--- Server Configuration ---"
 echo "SERVER_NAME: $SERVER_NAME"
 echo "SAVE_NAME: $SAVE_NAME"
 
-# Box64 optimization for Wine compatibility
-export BOX64_DYNAREC_SAFEFLAGS=1
-export BOX64_DYNAREC_STRONGMEM=2
-export BOX64_LOG=1
-export BOX64_MAXCPU=64
+# Box64 Performance Optimization (4 cores ARM)
+export BOX64_DYNAREC="${BOX64_DYNAREC:-1}"
+export BOX64_DYNAREC_BIGBLOCK="${BOX64_DYNAREC_BIGBLOCK:-2}"
+export BOX64_DYNAREC_STRONGMEM="${BOX64_DYNAREC_STRONGMEM:-1}"
+export BOX64_DYNAREC_SAFEFLAGS="${BOX64_DYNAREC_SAFEFLAGS:-0}"
+export BOX64_DYNAREC_FASTNAN="${BOX64_DYNAREC_FASTNAN:-1}"
+export BOX64_DYNAREC_FASTROUND="${BOX64_DYNAREC_FASTROUND:-1}"
+export BOX64_DYNAREC_X87DOUBLE="${BOX64_DYNAREC_X87DOUBLE:-1}"
+export BOX64_MAXCPU="${BOX64_MAXCPU:-4}"
+export BOX64_LOG="${BOX64_LOG:-0}"
+
+# Box86 Performance Optimization (for SteamCMD)
+export BOX86_DYNAREC="${BOX86_DYNAREC:-1}"
+export BOX86_DYNAREC_BIGBLOCK="${BOX86_DYNAREC_BIGBLOCK:-2}"
+export BOX86_DYNAREC_STRONGMEM="${BOX86_DYNAREC_STRONGMEM:-1}"
+export BOX86_LOG="${BOX86_LOG:-0}"
 
 # Ensure directories exist
 mkdir -p /data/server /data/save-data /data/wine-prefix

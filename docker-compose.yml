@@ -10,19 +10,65 @@ services:
       - "9876:9876/udp"
       - "9877:9877/udp"
     environment:
+      # Server Configuration
       - SERVER_NAME=MyVServer
       - SAVE_NAME=world1
-      # Box64 optimization for Wine compatibility
-      - BOX64_DYNAREC_SAFEFLAGS=1
-      - BOX64_DYNAREC_STRONGMEM=2
-      - BOX64_LOG=1
-      - BOX64_MAXCPU=64
-      # Extra command line arguments for VRisingServer.exe (optional)
+      
+      # Box64 Performance Optimization (4 cores ARM)
+      - BOX64_DYNAREC=1
+      - BOX64_DYNAREC_BIGBLOCK=2
+      - BOX64_DYNAREC_STRONGMEM=1
+      - BOX64_DYNAREC_SAFEFLAGS=0
+      - BOX64_DYNAREC_FASTNAN=1
+      - BOX64_DYNAREC_FASTROUND=1
+      - BOX64_DYNAREC_X87DOUBLE=1
+      - BOX64_MAXCPU=4
+      - BOX64_LOG=0
+      
+      # Box86 Optimization (for SteamCMD)
+      - BOX86_DYNAREC=1
+      - BOX86_DYNAREC_BIGBLOCK=2
+      - BOX86_DYNAREC_STRONGMEM=1
+      - BOX86_LOG=0
+      
+      # Wine Performance
+      - WINEDEBUG=-all
+      - STAGING_SHARED_MEMORY=1
+      
+      # Extra V Rising server arguments (optional)
       - EXTRA_ARGS=
+      
     volumes:
       - ./server-data:/data
-    # Increase shared memory size for Wine/Box64
-    shm_size: '2gb'
+    
+    # Resource limits for 4 cores, 25GB RAM
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 20G
+        reservations:
+          cpus: '2'
+          memory: 8G
+    
+    # Increased shared memory for Wine/Unity
+    shm_size: '4gb'
+    
+    # Performance tuning
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    
+    # Reduce logging overhead
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
     tty: true
     stdin_open: true
-
