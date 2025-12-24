@@ -1,83 +1,93 @@
 #!/bin/bash
 set -e
 
-APP_ID=1829350
-INSTALL_DIR="/app"
+echo "=========================================="
+echo " VRising ARM64 MVP - FEX-Emu"
+echo " $(date)"
+echo "=========================================="
+
+STEAM_DIR="/steam"
 DATA_DIR="/data"
-STEAM_USER="anonymous"
+APP_ID=1829350
 
-echo "--> V Rising Dedicated Server - ARM64 Container"
-echo "--> Initializing..."
-
-# 1. Setup Directories
-mkdir -p "$DATA_DIR/Settings" "$DATA_DIR/Saves" "$WINEPREFIX"
-
-# 2. Xvfb Setup (Headless Display)
-# Clean up previous locks if container restarted
-rm -f /tmp/.X99-lock
-Xvfb :99 -screen 0 1024x768x16 &
-export DISPLAY=:99
-
-# 3. SteamCMD Update / Install
-# We skip update if NO_UPDATE=1 is set (faster restarts for dev)
-if [ -z "$NO_UPDATE" ]; then
-    echo "--> Updating V Rising Server (App ID: $APP_ID)..."
-    # Note: We need to run steamcmd with box85/box64 depending on its arch.
-    # Assuming the image puts steamcmd in path and handles arch.
-    # If the steamcmd binary is 32-bit (standard), we need box86.
-    # The Dockerfile should alias 'steamcmd' to the right invocation.
-    
-    steamcmd +force_install_dir "$INSTALL_DIR" \
-             +login "$STEAM_USER" \
-             +app_update "$APP_ID" validate \
-             +quit
-else
-    echo "--> Skipping SteamCMD update (NO_UPDATE env set)"
-fi
-
-# 4. Configuration Generation
-SETTINGS_FILE="$DATA_DIR/Settings/ServerHostSettings.json"
-GAME_SETTINGS_FILE="$DATA_DIR/Settings/GameSettings.json"
-
-if [ ! -f "$SETTINGS_FILE" ]; then
-    echo "--> Generating default ServerHostSettings.json..."
-    
-    # Defaults
-    NAME="${VR_SERVER_NAME:-V Rising ARM64}"
-    DESC="${VR_SERVER_DESC:-Dedicated Server on Oracle Cloud}"
-    PORT="${VR_GAME_PORT:-27015}"
-    QUERY_PORT="${VR_QUERY_PORT:-27016}"
-    MAX_USERS="${VR_MAX_PLAYERS:-10}"
-    PASS="${VR_PASSWORD:-}"
-    SECURE="${VR_SECURE:-true}"
-    SAVE_NAME="${VR_WORLD_NAME:-world1}"
-    
-    cat > "$SETTINGS_FILE" <<EOF
-{
-  "Name": "$NAME",
-  "Description": "$DESC",
-  "Port": $PORT,
-  "QueryPort": $QUERY_PORT,
-  "MaxConnectedUsers": $MAX_USERS,
-  "Password": "$PASS",
-  "Secure": $SECURE,
-  "SaveName": "$SAVE_NAME"
+# Cleanup on exit
+cleanup() {
+    echo "Shutting down..."
+    if [ -n "$XVFB_PID" ]; then
+        kill "$XVFB_PID" 2>/dev/null || true
+    fi
 }
-EOF
+trap cleanup EXIT
+
+# Step 0: Start Xvfb virtual display (single instance)
+echo "[0/4] Iniciando display virtual Xvfb..."
+export DISPLAY=:99
+if ! pgrep -f "Xvfb :99" > /dev/null; then
+    Xvfb :99 -screen 0 1024x768x16 &>/dev/null &
+    XVFB_PID=$!
+    sleep 2
+    echo "Xvfb iniciado (PID: $XVFB_PID)"
+else
+    echo "Xvfb já está rodando"
 fi
 
-# 5. Launch Server
-# Using the wrapper to apply Box64 env vars
-echo "--> Launching Server..."
-cd "$INSTALL_DIR"
+# Step 1: Inicializa Wine prefix (se não existe)
+export WINEPREFIX="$DATA_DIR/wine-prefix"
+export WINEARCH=win64
+export WINEDEBUG=-all
+export WINEDLLOVERRIDES="winemenubuilder.exe=d;mscoree=d;mshtml=d"
 
-# Arguments for the server
-SERVER_ARGS=(
-    "-batchmode"
-    "-nographics"
-    "-server"
-    "-persistentDataPath" "$DATA_DIR"
-    "-logFile" "/dev/stdout"
-)
+if [ ! -f "$WINEPREFIX/system.reg" ]; then
+    echo "[1/4] Inicializando Wine prefix..."
+    /app/wine-wrapper.sh wineboot --init
+    echo "Wine prefix criado."
+else
+    echo "[1/4] Wine prefix já existe, pulando inicialização."
+fi
 
-exec /usr/local/bin/wine-preloader-wrapper ./VRisingServer.exe "${SERVER_ARGS[@]}"
+# Step 2: Atualiza/instala VRising via SteamCMD
+if [ ! -f "$STEAM_DIR/VRisingServer.exe" ] || [ "${FORCE_UPDATE:-false}" == "true" ]; then
+    echo "[2/4] Baixando VRising Server via SteamCMD..."
+    
+    # Baixa SteamCMD Windows se necessário
+    if [ ! -f "$STEAM_DIR/steamcmd/steamcmd.exe" ]; then
+        mkdir -p "$STEAM_DIR/steamcmd"
+        curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip" -o /tmp/steamcmd.zip
+        unzip -q /tmp/steamcmd.zip -d "$STEAM_DIR/steamcmd"
+        rm /tmp/steamcmd.zip
+    fi
+    
+    # Executa SteamCMD via Wine+FEX
+    /app/wine-wrapper.sh "$STEAM_DIR/steamcmd/steamcmd.exe" \
+        +@sSteamCmdForcePlatformType windows \
+        +force_install_dir "$STEAM_DIR" \
+        +login anonymous \
+        +app_update $APP_ID validate \
+        +quit
+    
+    echo "Download completo."
+else
+    echo "[2/4] VRising já instalado, pulando download."
+fi
+
+# Step 3: Valida instalação
+if [ ! -f "$STEAM_DIR/VRisingServer.exe" ]; then
+    echo "ERRO: VRisingServer.exe não encontrado!"
+    exit 1
+fi
+echo "[3/4] VRisingServer.exe encontrado ✓"
+
+# Step 4: Inicia servidor
+echo "[4/4] Iniciando VRising Server..."
+echo "  Porta Game:  ${VR_GAME_PORT:-27015}/UDP"
+echo "  Porta Query: ${VR_QUERY_PORT:-27016}/UDP"
+echo "  Nome:        ${VR_SERVER_NAME:-VRising-ARM64}"
+echo ""
+
+exec /app/wine-wrapper.sh "$STEAM_DIR/VRisingServer.exe" \
+    -persistentDataPath "$DATA_DIR" \
+    -serverName "${VR_SERVER_NAME:-VRising-ARM64}" \
+    -saveName "${VR_SAVE_NAME:-world1}" \
+    -gamePort "${VR_GAME_PORT:-27015}" \
+    -queryPort "${VR_QUERY_PORT:-27016}" \
+    -logFile "$DATA_DIR/Server.log"
