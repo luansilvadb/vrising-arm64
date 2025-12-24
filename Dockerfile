@@ -80,6 +80,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxcomposite1 \
     libxi6 \
     libxcursor1 \
+    libcups2 \
+    libegl1 \
     # Bibliotecas adicionais para Wine
     libfreetype6 \
     libfontconfig1 \
