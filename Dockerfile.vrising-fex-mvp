@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
     libtalloc-dev libglfw3-dev libvulkan-dev git ca-certificates python3
 
 WORKDIR /build
-RUN git clone --depth 1 --branch FEX-2512 https://github.com/FEX-Emu/FEX.git
+RUN git clone --depth 1 --recurse-submodules --branch FEX-2512 https://github.com/FEX-Emu/FEX.git
 WORKDIR /build/FEX
 RUN CC=clang-15 CXX=clang++-15 cmake -B Build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
