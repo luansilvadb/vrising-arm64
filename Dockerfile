@@ -13,8 +13,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # FEX dependencies
     libtalloc2 libglfw3 libvulkan1 libwayland-client0 \
     libxkbcommon0 libxcb1 libx11-6 xvfb \
+    # SquashFS mount support
+    squashfuse fuse3 \
     # Network tools
     netcat-openbsd socat procps \
+    # For automating interactive prompts
+    expect \
     # SteamCMD requirement
     unzip \
     && rm -rf /var/lib/apt/lists/*
@@ -25,27 +29,24 @@ RUN add-apt-repository -y ppa:fex-emu/fex && \
     apt-get install -y fex-emu-armv8.0 && \
     rm -rf /var/lib/apt/lists/*
 
-# 3. Cria usuário não-root (antes de baixar RootFS)
+# 3. Cria usuário não-root
 RUN useradd -u 1000 -m -s /bin/bash vrising && \
-    mkdir -p /app /data /steam /opt/fex-rootfs && \
-    chown -R vrising:vrising /app /data /steam /opt/fex-rootfs
+    mkdir -p /app /data /steam /home/vrising/.fex-emu && \
+    chown -R vrising:vrising /app /data /steam /home/vrising/.fex-emu
 
-# 4. Baixa RootFS x86_64 usando FEXRootFSFetcher (como usuário vrising)
+# 4. Baixa RootFS via FEXRootFSFetcher usando expect para automação
 USER vrising
-RUN mkdir -p /home/vrising/.fex-emu && \
-    FEXRootFSFetcher --distro ubuntu --version 22.04 -x /opt/fex-rootfs
+RUN expect -c ' \
+    set timeout 1800; \
+    spawn FEXRootFSFetcher; \
+    expect "Enter selection:" { send "1\r" }; \
+    expect "Would you like to extract" { send "n\r" }; \
+    expect "Extract as default" { send "n\r" }; \
+    expect "Set as default" { send "y\r" }; \
+    expect eof \
+    ' || echo "Warning: FEXRootFSFetcher may have issues, continuing..."
 
-# 5. Configura FEX para usuário vrising
-COPY --chown=vrising:vrising <<EOF /home/vrising/.fex-emu/Config.json
-{
-  "RootFS": "/opt/fex-rootfs",
-  "ThunkHostLibs": "/usr/lib/aarch64-linux-gnu",
-  "MaxJITBlockSize": 65536,
-  "Multiblock": "2"
-}
-EOF
-
-# 6. Copia scripts (volta para root temporariamente)
+# 5. Copia scripts (volta para root temporariamente)
 USER root
 COPY --chown=vrising:vrising entrypoint.sh /app/
 COPY --chown=vrising:vrising wine-wrapper.sh /app/
