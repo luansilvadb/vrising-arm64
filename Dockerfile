@@ -83,8 +83,8 @@ ENV LANG=en_US.UTF-8 \
 # =============================================================================
 RUN mkdir -p /opt/wine && \
     cd /tmp && \
-    # Usar Wine 9.0 com WOW64 experimental
-    wget -q "https://github.com/Kron4ek/Wine-Builds/releases/download/9.0/wine-9.0-amd64-wow64.tar.xz" -O wine.tar.xz && \
+    # Usar Wine 11.0-rc3 com WOW64
+    wget -q "https://github.com/Kron4ek/Wine-Builds/releases/download/11.0-rc3/wine-11.0-rc3-amd64-wow64.tar.xz" -O wine.tar.xz && \
     tar -xf wine.tar.xz -C /opt/wine --strip-components=1 && \
     rm wine.tar.xz && \
     # Verificar arquivos
