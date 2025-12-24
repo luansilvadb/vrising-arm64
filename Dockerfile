@@ -49,14 +49,16 @@ ENV DEBIAN_FRONTEND=noninteractive \
     BOX64_NOBANNER="1"
 
 # =============================================================================
-# Instalação de dependências adicionais
+# Instalação de dependências e Wine via repositório
 # =============================================================================
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN dpkg --add-architecture armhf && \
+    apt-get update && apt-get install -y --no-install-recommends \
     # Utilitários básicos
     ca-certificates \
     curl \
     wget \
     xz-utils \
+    gnupg2 \
     # Display virtual para Wine
     xvfb \
     # JSON processing
@@ -79,13 +81,36 @@ ENV LANG=en_US.UTF-8 \
     LC_ALL=en_US.UTF-8
 
 # =============================================================================
-# Instalar Wine (via Box64)
+# Instalar Wine do repositório WineHQ (para ARM via Box64)
+# Usaremos a versão x86_64 do Wine que será executada via Box64
 # =============================================================================
 RUN mkdir -p /opt/wine && \
-    # Baixar Wine x86_64 (versão estável)
-    wget -q "https://github.com/Kron4ek/Wine-Builds/releases/download/9.22/wine-9.22-amd64.tar.xz" -O /tmp/wine.tar.xz && \
-    tar -xf /tmp/wine.tar.xz -C /opt/wine --strip-components=1 && \
-    rm /tmp/wine.tar.xz
+    cd /tmp && \
+    # Baixar Wine x86_64 (versão 8.0 que é mais estável)
+    wget -q "https://github.com/Kron4ek/Wine-Builds/releases/download/8.0.2/wine-8.0.2-amd64.tar.xz" -O wine.tar.xz && \
+    tar -xf wine.tar.xz -C /opt/wine --strip-components=1 && \
+    rm wine.tar.xz && \
+    # Verificar que os binários existem
+    ls -la /opt/wine/bin/
+
+# =============================================================================
+# Criar script wrapper para Wine que usa Box64
+# =============================================================================
+RUN echo '#!/bin/bash' > /usr/local/bin/wine && \
+    echo 'exec /usr/local/bin/box64 /opt/wine/bin/wine "$@"' >> /usr/local/bin/wine && \
+    chmod +x /usr/local/bin/wine && \
+    echo '#!/bin/bash' > /usr/local/bin/wine64 && \
+    echo 'exec /usr/local/bin/box64 /opt/wine/bin/wine64 "$@"' >> /usr/local/bin/wine64 && \
+    chmod +x /usr/local/bin/wine64 && \
+    echo '#!/bin/bash' > /usr/local/bin/wineboot && \
+    echo 'exec /usr/local/bin/box64 /opt/wine/bin/wineboot "$@"' >> /usr/local/bin/wineboot && \
+    chmod +x /usr/local/bin/wineboot && \
+    echo '#!/bin/bash' > /usr/local/bin/wineserver && \
+    echo 'exec /usr/local/bin/box64 /opt/wine/bin/wineserver "$@"' >> /usr/local/bin/wineserver && \
+    chmod +x /usr/local/bin/wineserver && \
+    echo '#!/bin/bash' > /usr/local/bin/winecfg && \
+    echo 'exec /usr/local/bin/box64 /opt/wine/bin/winecfg "$@"' >> /usr/local/bin/winecfg && \
+    chmod +x /usr/local/bin/winecfg
 
 # =============================================================================
 # Instalar SteamCMD (versão Linux x86)

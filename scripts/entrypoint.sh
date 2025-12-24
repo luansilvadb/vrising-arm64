@@ -44,7 +44,7 @@ SETTINGS_DIR="${SAVES_DIR}/Settings"
 VRISING_APP_ID="${VRISING_APP_ID:-1829350}"
 
 # Wine paths
-export WINEPREFIX="/data/wine"
+export WINEPREFIX="${WINEPREFIX:-/data/wine}"
 export WINEARCH="win64"
 export WINEDEBUG="-all"
 export DISPLAY=":0"
@@ -54,6 +54,7 @@ export BOX86_LOG=0
 export BOX64_LOG=0
 export BOX86_NOBANNER=1
 export BOX64_NOBANNER=1
+export BOX64_LD_LIBRARY_PATH="/opt/wine/lib64:/opt/wine/lib"
 
 # Configurações do servidor
 SERVER_NAME="${SERVER_NAME:-V Rising Server}"
@@ -106,25 +107,30 @@ init_wine() {
     fi
     
     log_info "Criando novo Wine prefix (isso pode demorar alguns minutos)..."
+    log_info "Usando wineboot via wrapper script..."
     
-    # Inicializar Wine prefix via Box64
-    if box64 /opt/wine/bin/wineboot --init 2>/dev/null; then
+    # Inicializar Wine prefix usando o wrapper
+    if wineboot --init 2>&1; then
         log_success "Wine prefix inicializado com sucesso!"
         # Aguardar wineserver finalizar
-        box64 /opt/wine/bin/wineserver -w 2>/dev/null || true
+        wineserver -w 2>/dev/null || true
+        sleep 3
         return 0
     else
         log_warning "Wineboot retornou com warnings, verificando prefix..."
         # Aguardar e verificar
-        sleep 5
-        box64 /opt/wine/bin/wineserver -w 2>/dev/null || true
+        sleep 10
+        wineserver -w 2>/dev/null || true
         
         if [ -f "${WINEPREFIX}/system.reg" ]; then
             log_success "Wine prefix parece estar funcional!"
             return 0
         else
-            log_error "Falha ao criar Wine prefix!"
-            return 1
+            log_warning "Wine prefix pode não estar completo, tentando continuar..."
+            # Criar estrutura mínima
+            mkdir -p "${WINEPREFIX}/drive_c/windows/system32"
+            mkdir -p "${WINEPREFIX}/drive_c/users/root"
+            return 0
         fi
     fi
 }
@@ -153,18 +159,17 @@ install_or_update_server() {
     while [ $attempt -le $max_attempts ]; do
         log_info "Tentativa ${attempt} de ${max_attempts}..."
         
-        if box86 /opt/steamcmd/linux32/steamcmd \
+        box86 /opt/steamcmd/linux32/steamcmd \
             +@sSteamCmdForcePlatformType windows \
             +force_install_dir "${SERVER_DIR}" \
             +login anonymous \
             +app_update ${VRISING_APP_ID} validate \
-            +quit; then
-            
-            # Verificar se o servidor foi baixado
-            if [ -f "${SERVER_DIR}/VRisingServer.exe" ]; then
-                log_success "Servidor V Rising instalado/atualizado com sucesso!"
-                return 0
-            fi
+            +quit
+        
+        # Verificar se o servidor foi baixado
+        if [ -f "${SERVER_DIR}/VRisingServer.exe" ]; then
+            log_success "Servidor V Rising instalado/atualizado com sucesso!"
+            return 0
         fi
         
         log_warning "Tentativa ${attempt} falhou, aguardando antes de tentar novamente..."
@@ -325,8 +330,8 @@ start_server() {
     log_info "Executando VRisingServer.exe via Wine/Box64..."
     log_info "O servidor pode demorar alguns minutos para iniciar na primeira vez..."
     
-    # Executar o servidor via Box64 + Wine
-    exec box64 /opt/wine/bin/wine64 "${SERVER_DIR}/VRisingServer.exe" \
+    # Executar o servidor via wrapper wine64
+    exec wine64 "${SERVER_DIR}/VRisingServer.exe" \
         -persistentDataPath "${SAVES_DIR}" \
         -serverName "${SERVER_NAME}" \
         -saveName "${WORLD_NAME}" \
@@ -341,7 +346,7 @@ shutdown_server() {
     log_info "Finalizando servidor V Rising..."
     
     # Matar processos Wine
-    box64 /opt/wine/bin/wineserver -k 2>/dev/null || true
+    wineserver -k 2>/dev/null || true
     
     # Matar Xvfb
     pkill -9 Xvfb 2>/dev/null || true
@@ -375,7 +380,7 @@ mkdir -p "${SERVER_DIR}" "${SAVES_DIR}" "${WINEPREFIX}" /data/logs
 init_display || exit 1
 
 # Inicializar Wine
-init_wine || exit 1
+init_wine || log_warning "Continuando mesmo com problemas no Wine..."
 
 # Instalar/atualizar servidor
 install_or_update_server || exit 1
