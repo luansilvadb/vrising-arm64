@@ -47,6 +47,14 @@ RUN dpkg --add-architecture armhf \
     libopenal1 \
     libncurses6 \
     libvulkan1 \
+    libcups2 \
+    libavutil56 \
+    libavformat58 \
+    libavcodec58 \
+    libswresample3 \
+    libv4l-0 \
+    libgstreamer1.0-0 \
+    libgstreamer-plugins-base1.0-0 \
     # armhf libraries for Box86 (SteamCMD i386 emulation)
     libc6:armhf \
     libstdc++6:armhf \
