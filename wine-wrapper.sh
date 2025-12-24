@@ -27,7 +27,12 @@ echo "Checking RootFS..."
 ls -la "${FEX_ROOTFS}/usr/share/wine/wine/" 2>/dev/null | head -3 || echo "wine.inf check failed"
 echo "========================="
 
-# Executa wine64 via FEXBash
-# FEXBash configura o overlay do RootFS corretamente
-echo "Executando: wine64 $*"
-exec FEXBash -c "wine64 $*"
+# Constrói comando completo com aspas preservadas
+CMD="wine64"
+for arg in "$@"; do
+    CMD="$CMD '$arg'"
+done
+
+echo "Executando: $CMD"
+exec FEXBash -c "$CMD"
+
