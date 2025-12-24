@@ -6,13 +6,13 @@ FROM ubuntu:22.04 AS build-stage
 # Build FEX-Emu otimizado para Ampere Altra
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
-    build-essential cmake ninja-build llvm-15-dev libclang-15-dev \
+    build-essential cmake ninja-build clang-15 llvm-15-dev libclang-15-dev \
     libtalloc-dev libglfw3-dev libvulkan-dev git ca-certificates python3
 
 WORKDIR /build
 RUN git clone --depth 1 --branch FEX-2512 https://github.com/FEX-Emu/FEX.git
 WORKDIR /build/FEX
-RUN cmake -B Build -G Ninja \
+RUN CC=clang-15 CXX=clang++-15 cmake -B Build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_CXX_FLAGS="-mcpu=neoverse-n1 -O3 -flto" \
     -DENABLE_VIXL_SIMULATOR=OFF \
