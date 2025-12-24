@@ -111,14 +111,24 @@ init_wine_fast() {
 install_or_update_server() {
     log_info "Verificando instalação do servidor V Rising..."
     
+    local needs_download=false
+    
     if [ -f "${SERVER_DIR}/VRisingServer.exe" ]; then
-        log_success "Servidor já instalado!"
-        return 0
+        if [ "${AUTO_UPDATE:-true}" = "true" ]; then
+            log_info "Servidor instalado. Verificando atualizações..."
+        else
+            log_success "Servidor já instalado! (AUTO_UPDATE=false, pulando verificação)"
+            return 0
+        fi
+    else
+        log_info "Servidor não encontrado. Iniciando download..."
+        needs_download=true
     fi
     
-    log_info "Servidor não encontrado. Iniciando download..."
     log_info "Executando SteamCMD via Box86..."
-    log_info "Download de ~2GB - isso pode demorar 5-15 minutos..."
+    if [ "$needs_download" = "true" ]; then
+        log_info "Download de ~2GB - isso pode demorar 5-15 minutos..."
+    fi
     
     cd "${STEAMCMD_DIR}"
     

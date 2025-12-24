@@ -35,6 +35,9 @@ services:
       # Modo de jogo
       - GAME_MODE_TYPE=${GAME_MODE_TYPE:-PvP}
 
+      # Atualização automática no restart
+      - AUTO_UPDATE=${AUTO_UPDATE:-true}
+
       # Timezone
       - TZ=${TZ:-America/Sao_Paulo}
 
