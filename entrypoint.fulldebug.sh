@@ -99,9 +99,16 @@ echo "  -logFile $DATA_DIR/Server.log"
 echo "==========================================="
 echo ""
 
-# Executa servidor - MINIMAL flags primeiro
-# VRising espera -persistentDataPath e lê configs de Settings/
+# Executa servidor com FLAGS DE LINHA DE COMANDO (sobrescreve JSON)
+# -lan força LAN mode (bypassa Steam GameServer)
+# -disableSecure desabilita VAC
+# -listOnSteam false não lista no Steam
+# -listOnEOS false não lista no EOS
 exec /app/wine-wrapper.sh "$STEAM_DIR/VRisingServer.exe" \
     -persistentDataPath "$DATA_DIR" \
     -logFile "$DATA_DIR/Server.log" \
+    -lan \
+    -disableSecure \
+    -listOnSteam false \
+    -listOnEOS false \
     2>&1 | tee -a "$DATA_DIR/console.log"
