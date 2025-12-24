@@ -2,16 +2,19 @@
 # V Rising Dedicated Server - ARM64 Docker Image
 # =============================================================================
 # Este Dockerfile cria uma imagem ARM64 para rodar o servidor dedicado de 
-# V Rising usando Box64/Box86 + Wine para emulação x86/x64.
+# V Rising usando a imagem scottyhardy/docker-wine que já tem Wine + Box64.
 #
 # Testado em: Oracle Cloud ARM64 (Ampere A1) com Ubuntu 20.04
 # =============================================================================
 
-# Usar imagem base que já tem Box86/Box64 pré-instalados
-FROM weilbyte/box:debian-11
+# Usar imagem docker-wine que tem Wine funcionando em ARM64
+FROM scottyhardy/docker-wine:latest
+
+# Forçar arquitetura para ARM64 e instalar Box86 para SteamCMD
+USER root
 
 LABEL maintainer="VRising ARM64 Server"
-LABEL description="V Rising Dedicated Server for ARM64 using Box64/Wine"
+LABEL description="V Rising Dedicated Server for ARM64 using Docker-Wine"
 
 # =============================================================================
 # Variáveis de ambiente padrão
@@ -36,81 +39,56 @@ ENV DEBIAN_FRONTEND=noninteractive \
     SAVES_DIR="/data/saves" \
     # Steam App ID do V Rising Dedicated Server
     VRISING_APP_ID="1829350" \
-    # Wine - usar volume para persistir
+    # Wine
     WINEPREFIX="/data/wine" \
     WINEARCH="win64" \
     WINEDEBUG="-all" \
     # Display virtual
-    DISPLAY=":0" \
-    # Box86/Box64 settings
-    BOX86_LOG="0" \
-    BOX64_LOG="0" \
-    BOX86_NOBANNER="1" \
-    BOX64_NOBANNER="1"
+    DISPLAY=":0"
 
 # =============================================================================
-# Instalação de dependências e Wine via repositório
+# Instalação de dependências adicionais e Box86 para SteamCMD
 # =============================================================================
-RUN dpkg --add-architecture armhf && \
+RUN dpkg --add-architecture armhf 2>/dev/null || true && \
     apt-get update && apt-get install -y --no-install-recommends \
-    # Utilitários básicos
-    ca-certificates \
-    curl \
-    wget \
-    xz-utils \
-    gnupg2 \
-    # Display virtual para Wine
+    # Utilitários
     xvfb \
-    # JSON processing
     jq \
-    # Timezone
-    tzdata \
-    # Networking
     netcat-openbsd \
-    # Procps para ps
     procps \
-    # Locale
     locales \
+    wget \
+    ca-certificates \
+    # Bibliotecas armhf para Box86
+    libc6:armhf \
+    libstdc++6:armhf \
     && rm -rf /var/lib/apt/lists/* \
     # Configurar locale
-    && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
-    && locale-gen
+    && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen 2>/dev/null || true \
+    && locale-gen 2>/dev/null || true
 
 ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
     LC_ALL=en_US.UTF-8
 
 # =============================================================================
-# Instalar Wine do repositório WineHQ (para ARM via Box64)
-# Usaremos a versão x86_64 do Wine que será executada via Box64
+# Instalar Box86 para SteamCMD (compila do source se necessário)
 # =============================================================================
-RUN mkdir -p /opt/wine && \
-    cd /tmp && \
-    # Baixar Wine x86_64 (versão 8.0 que é mais estável)
-    wget -q "https://github.com/Kron4ek/Wine-Builds/releases/download/8.0.2/wine-8.0.2-amd64.tar.xz" -O wine.tar.xz && \
-    tar -xf wine.tar.xz -C /opt/wine --strip-components=1 && \
-    rm wine.tar.xz && \
-    # Verificar que os binários existem
-    ls -la /opt/wine/bin/
-
-# =============================================================================
-# Criar script wrapper para Wine que usa Box64
-# =============================================================================
-RUN echo '#!/bin/bash' > /usr/local/bin/wine && \
-    echo 'exec /usr/local/bin/box64 /opt/wine/bin/wine "$@"' >> /usr/local/bin/wine && \
-    chmod +x /usr/local/bin/wine && \
-    echo '#!/bin/bash' > /usr/local/bin/wine64 && \
-    echo 'exec /usr/local/bin/box64 /opt/wine/bin/wine64 "$@"' >> /usr/local/bin/wine64 && \
-    chmod +x /usr/local/bin/wine64 && \
-    echo '#!/bin/bash' > /usr/local/bin/wineboot && \
-    echo 'exec /usr/local/bin/box64 /opt/wine/bin/wineboot "$@"' >> /usr/local/bin/wineboot && \
-    chmod +x /usr/local/bin/wineboot && \
-    echo '#!/bin/bash' > /usr/local/bin/wineserver && \
-    echo 'exec /usr/local/bin/box64 /opt/wine/bin/wineserver "$@"' >> /usr/local/bin/wineserver && \
-    chmod +x /usr/local/bin/wineserver && \
-    echo '#!/bin/bash' > /usr/local/bin/winecfg && \
-    echo 'exec /usr/local/bin/box64 /opt/wine/bin/winecfg "$@"' >> /usr/local/bin/winecfg && \
-    chmod +x /usr/local/bin/winecfg
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    cmake \
+    git \
+    build-essential \
+    python3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && cd /tmp \
+    && git clone --depth 1 https://github.com/ptitSeb/box86.git \
+    && cd box86 \
+    && mkdir build && cd build \
+    && cmake .. -DARM_DYNAREC=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+    && make -j$(nproc) \
+    && make install \
+    && cd / \
+    && rm -rf /tmp/box86
 
 # =============================================================================
 # Instalar SteamCMD (versão Linux x86)

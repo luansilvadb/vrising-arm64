@@ -49,13 +49,6 @@ export WINEARCH="win64"
 export WINEDEBUG="-all"
 export DISPLAY=":0"
 
-# Box86/Box64 settings
-export BOX86_LOG=0
-export BOX64_LOG=0
-export BOX86_NOBANNER=1
-export BOX64_NOBANNER=1
-export BOX64_LD_LIBRARY_PATH="/opt/wine/lib64:/opt/wine/lib"
-
 # Configurações do servidor
 SERVER_NAME="${SERVER_NAME:-V Rising Server}"
 WORLD_NAME="${WORLD_NAME:-world1}"
@@ -107,18 +100,15 @@ init_wine() {
     fi
     
     log_info "Criando novo Wine prefix (isso pode demorar alguns minutos)..."
-    log_info "Usando wineboot via wrapper script..."
     
-    # Inicializar Wine prefix usando o wrapper
+    # Inicializar Wine prefix usando wineboot do sistema
     if wineboot --init 2>&1; then
         log_success "Wine prefix inicializado com sucesso!"
-        # Aguardar wineserver finalizar
         wineserver -w 2>/dev/null || true
         sleep 3
         return 0
     else
         log_warning "Wineboot retornou com warnings, verificando prefix..."
-        # Aguardar e verificar
         sleep 10
         wineserver -w 2>/dev/null || true
         
@@ -127,9 +117,6 @@ init_wine() {
             return 0
         else
             log_warning "Wine prefix pode não estar completo, tentando continuar..."
-            # Criar estrutura mínima
-            mkdir -p "${WINEPREFIX}/drive_c/windows/system32"
-            mkdir -p "${WINEPREFIX}/drive_c/users/root"
             return 0
         fi
     fi
@@ -198,7 +185,6 @@ configure_server() {
     # ==========================================================================
     HOST_SETTINGS_FILE="${SETTINGS_DIR}/ServerHostSettings.json"
     
-    # Só criar se não existir (para permitir configurações customizadas)
     if [ ! -f "${HOST_SETTINGS_FILE}" ]; then
         log_info "Criando ServerHostSettings.json..."
         
@@ -327,10 +313,10 @@ start_server() {
     
     cd "${SERVER_DIR}"
     
-    log_info "Executando VRisingServer.exe via Wine/Box64..."
+    log_info "Executando VRisingServer.exe via Wine..."
     log_info "O servidor pode demorar alguns minutos para iniciar na primeira vez..."
     
-    # Executar o servidor via wrapper wine64
+    # Executar o servidor via Wine do sistema (já configurado na imagem docker-wine)
     exec wine64 "${SERVER_DIR}/VRisingServer.exe" \
         -persistentDataPath "${SAVES_DIR}" \
         -serverName "${SERVER_NAME}" \
