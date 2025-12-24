@@ -7,7 +7,7 @@ FROM ubuntu:22.04 AS build-stage
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
     build-essential cmake ninja-build clang-15 llvm-15-dev libclang-15-dev \
-    libtalloc-dev libglfw3-dev libvulkan-dev qtbase5-dev git ca-certificates python3
+    libtalloc-dev libglfw3-dev libvulkan-dev qtbase5-dev qtdeclarative5-dev git ca-certificates python3
 
 WORKDIR /build
 RUN git clone --depth 1 --recurse-submodules --branch FEX-2512 https://github.com/FEX-Emu/FEX.git
