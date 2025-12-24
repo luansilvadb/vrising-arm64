@@ -127,17 +127,13 @@ install_or_update_server() {
     while [ $attempt -le $max_attempts ]; do
         log_info "Tentativa ${attempt} de ${max_attempts}..."
         
+        # Mostrar toda a saída do SteamCMD para debug
         box86 /opt/steamcmd/linux32/steamcmd \
             +@sSteamCmdForcePlatformType windows \
             +force_install_dir "${SERVER_DIR}" \
             +login anonymous \
             +app_update ${VRISING_APP_ID} validate \
-            +quit 2>&1 | while read line; do
-                # Mostrar progresso
-                if [[ "$line" == *"Update state"* ]] || [[ "$line" == *"downloading"* ]] || [[ "$line" == *"progress"* ]]; then
-                    echo "[SteamCMD] $line"
-                fi
-            done
+            +quit
         
         if [ -f "${SERVER_DIR}/VRisingServer.exe" ]; then
             log_success "Servidor V Rising instalado!"
