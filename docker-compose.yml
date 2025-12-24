@@ -45,12 +45,8 @@ services:
 
     # Volumes para persistência de dados
     volumes:
-      # Arquivos do servidor (instalação do jogo)
-      - vrising-server:/data/server
-      # Saves do mundo e configurações
-      - vrising-saves:/data/saves
-      # Logs
-      - vrising-logs:/data/logs
+      # Volume único para todos os dados (server, saves, wine, logs)
+      - vrising-data:/data
 
     # Recursos (ajuste conforme necessário)
     # EasyPanel gerencia isso automaticamente, mas você pode definir limites
@@ -66,14 +62,10 @@ services:
       test: [ "CMD", "nc", "-zu", "localhost", "${GAME_PORT:-9876}" ]
       interval: 60s
       timeout: 10s
-      start_period: 300s
+      start_period: 900s
       retries: 3
 
 # Volumes nomeados para persistência
 volumes:
-  vrising-server:
-    driver: local
-  vrising-saves:
-    driver: local
-  vrising-logs:
+  vrising-data:
     driver: local

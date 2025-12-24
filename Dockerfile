@@ -36,8 +36,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     SAVES_DIR="/data/saves" \
     # Steam App ID do V Rising Dedicated Server
     VRISING_APP_ID="1829350" \
-    # Wine
-    WINEPREFIX="/root/.wine" \
+    # Wine - usar volume para persistir
+    WINEPREFIX="/data/wine" \
     WINEARCH="win64" \
     WINEDEBUG="-all" \
     # Display virtual
@@ -67,28 +67,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     netcat-openbsd \
     # Procps para ps
     procps \
-    && rm -rf /var/lib/apt/lists/*
+    # Locale
+    locales \
+    && rm -rf /var/lib/apt/lists/* \
+    # Configurar locale
+    && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
+    && locale-gen
+
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8
 
 # =============================================================================
 # Instalar Wine (via Box64)
 # =============================================================================
 RUN mkdir -p /opt/wine && \
-    # Baixar Wine x86_64
+    # Baixar Wine x86_64 (versão estável)
     wget -q "https://github.com/Kron4ek/Wine-Builds/releases/download/9.22/wine-9.22-amd64.tar.xz" -O /tmp/wine.tar.xz && \
     tar -xf /tmp/wine.tar.xz -C /opt/wine --strip-components=1 && \
-    rm /tmp/wine.tar.xz && \
-    # Criar links simbólicos
-    ln -sf /opt/wine/bin/wine64 /usr/local/bin/wine64 && \
-    ln -sf /opt/wine/bin/wine /usr/local/bin/wine && \
-    ln -sf /opt/wine/bin/wineboot /usr/local/bin/wineboot && \
-    ln -sf /opt/wine/bin/winecfg /usr/local/bin/winecfg && \
-    ln -sf /opt/wine/bin/wineserver /usr/local/bin/wineserver
-
-# =============================================================================
-# Inicializar Wine prefix
-# =============================================================================
-RUN xvfb-run -a box64 /opt/wine/bin/wineboot --init && \
-    box64 /opt/wine/bin/wineserver -w || true
+    rm /tmp/wine.tar.xz
 
 # =============================================================================
 # Instalar SteamCMD (versão Linux x86)
@@ -105,7 +102,7 @@ RUN mkdir -p /opt/steamcmd && \
 # =============================================================================
 # Criar diretórios necessários
 # =============================================================================
-RUN mkdir -p /data/server /data/saves /data/logs /scripts
+RUN mkdir -p /data/server /data/saves /data/logs /data/wine /scripts
 
 # =============================================================================
 # Copiar scripts
@@ -121,12 +118,12 @@ EXPOSE 9876/udp 9877/udp
 # =============================================================================
 # Volumes para persistência
 # =============================================================================
-VOLUME ["/data/server", "/data/saves"]
+VOLUME ["/data"]
 
 # =============================================================================
 # Healthcheck
 # =============================================================================
-HEALTHCHECK --interval=60s --timeout=10s --start-period=600s --retries=3 \
+HEALTHCHECK --interval=60s --timeout=10s --start-period=900s --retries=3 \
     CMD nc -zu localhost 9876 || exit 1
 
 # =============================================================================

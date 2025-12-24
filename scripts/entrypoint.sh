@@ -3,12 +3,11 @@
 # V Rising Dedicated Server - Entrypoint Script
 # =============================================================================
 # Este script:
-# 1. Instala/atualiza o servidor V Rising via SteamCMD
-# 2. Configura os arquivos de settings baseado nas variáveis de ambiente
-# 3. Inicia o servidor
+# 1. Inicializa o Wine prefix
+# 2. Instala/atualiza o servidor V Rising via SteamCMD
+# 3. Configura os arquivos de settings baseado nas variáveis de ambiente
+# 4. Inicia o servidor
 # =============================================================================
-
-set -e
 
 # =============================================================================
 # Cores para output
@@ -44,6 +43,18 @@ SAVES_DIR="${SAVES_DIR:-/data/saves}"
 SETTINGS_DIR="${SAVES_DIR}/Settings"
 VRISING_APP_ID="${VRISING_APP_ID:-1829350}"
 
+# Wine paths
+export WINEPREFIX="/data/wine"
+export WINEARCH="win64"
+export WINEDEBUG="-all"
+export DISPLAY=":0"
+
+# Box86/Box64 settings
+export BOX86_LOG=0
+export BOX64_LOG=0
+export BOX86_NOBANNER=1
+export BOX64_NOBANNER=1
+
 # Configurações do servidor
 SERVER_NAME="${SERVER_NAME:-V Rising Server}"
 WORLD_NAME="${WORLD_NAME:-world1}"
@@ -59,6 +70,65 @@ GAME_MODE_TYPE="${GAME_MODE_TYPE:-PvP}"
 # Funções
 # =============================================================================
 
+init_display() {
+    log_info "Iniciando display virtual (Xvfb)..."
+    
+    # Matar Xvfb existente se houver
+    pkill -9 Xvfb 2>/dev/null || true
+    sleep 1
+    
+    # Iniciar Xvfb
+    Xvfb :0 -screen 0 1024x768x24 &
+    XVFB_PID=$!
+    
+    # Aguardar Xvfb iniciar
+    sleep 3
+    
+    if kill -0 ${XVFB_PID} 2>/dev/null; then
+        log_success "Display virtual iniciado (PID: ${XVFB_PID})"
+        return 0
+    else
+        log_error "Falha ao iniciar Xvfb!"
+        return 1
+    fi
+}
+
+init_wine() {
+    log_info "Inicializando Wine prefix..."
+    
+    # Criar diretório do Wine prefix
+    mkdir -p "${WINEPREFIX}"
+    
+    # Verificar se o Wine prefix já está inicializado
+    if [ -f "${WINEPREFIX}/system.reg" ]; then
+        log_info "Wine prefix já existe em ${WINEPREFIX}"
+        return 0
+    fi
+    
+    log_info "Criando novo Wine prefix (isso pode demorar alguns minutos)..."
+    
+    # Inicializar Wine prefix via Box64
+    if box64 /opt/wine/bin/wineboot --init 2>/dev/null; then
+        log_success "Wine prefix inicializado com sucesso!"
+        # Aguardar wineserver finalizar
+        box64 /opt/wine/bin/wineserver -w 2>/dev/null || true
+        return 0
+    else
+        log_warning "Wineboot retornou com warnings, verificando prefix..."
+        # Aguardar e verificar
+        sleep 5
+        box64 /opt/wine/bin/wineserver -w 2>/dev/null || true
+        
+        if [ -f "${WINEPREFIX}/system.reg" ]; then
+            log_success "Wine prefix parece estar funcional!"
+            return 0
+        else
+            log_error "Falha ao criar Wine prefix!"
+            return 1
+        fi
+    fi
+}
+
 install_or_update_server() {
     log_info "Verificando instalação do servidor V Rising..."
     
@@ -70,47 +140,45 @@ install_or_update_server() {
     fi
     
     # Usar SteamCMD para baixar/atualizar o servidor
-    log_info "Executando SteamCMD (isso pode demorar na primeira vez)..."
+    log_info "Executando SteamCMD..."
     log_info "Baixando V Rising Dedicated Server (AppID: ${VRISING_APP_ID})..."
+    log_info "Isso pode demorar de 5 a 15 minutos na primeira vez (~2GB)..."
     
     cd "${STEAMCMD_DIR}"
     
-    # Configurar variáveis de ambiente para Box86
-    export BOX86_LOG=0
-    export BOX86_NOBANNER=1
+    # Executar SteamCMD via Box86
+    local attempt=1
+    local max_attempts=3
     
-    # Executar SteamCMD via Box86 diretamente no binário
-    # O binário está em linux32/steamcmd (não o script .sh)
-    if box86 "${STEAMCMD_DIR}/linux32/steamcmd" \
-        +@sSteamCmdForcePlatformType windows \
-        +force_install_dir "${SERVER_DIR}" \
-        +login anonymous \
-        +app_update ${VRISING_APP_ID} validate \
-        +quit; then
-        log_success "Servidor V Rising instalado/atualizado com sucesso!"
-    else
-        log_warning "SteamCMD retornou com warnings (isso pode ser normal na primeira execução)"
-        # Verificar se o servidor foi baixado mesmo assim
-        if [ -f "${SERVER_DIR}/VRisingServer.exe" ]; then
-            log_success "Servidor V Rising encontrado após instalação!"
-        else
-            log_error "Falha ao instalar o servidor V Rising!"
-            log_info "Tentando novamente..."
-            # Segunda tentativa
-            box86 "${STEAMCMD_DIR}/linux32/steamcmd" \
-                +@sSteamCmdForcePlatformType windows \
-                +force_install_dir "${SERVER_DIR}" \
-                +login anonymous \
-                +app_update ${VRISING_APP_ID} validate \
-                +quit || true
+    while [ $attempt -le $max_attempts ]; do
+        log_info "Tentativa ${attempt} de ${max_attempts}..."
+        
+        if box86 /opt/steamcmd/linux32/steamcmd \
+            +@sSteamCmdForcePlatformType windows \
+            +force_install_dir "${SERVER_DIR}" \
+            +login anonymous \
+            +app_update ${VRISING_APP_ID} validate \
+            +quit; then
             
+            # Verificar se o servidor foi baixado
             if [ -f "${SERVER_DIR}/VRisingServer.exe" ]; then
-                log_success "Servidor V Rising instalado na segunda tentativa!"
-            else
-                log_error "Não foi possível instalar o servidor."
-                exit 1
+                log_success "Servidor V Rising instalado/atualizado com sucesso!"
+                return 0
             fi
         fi
+        
+        log_warning "Tentativa ${attempt} falhou, aguardando antes de tentar novamente..."
+        sleep 5
+        attempt=$((attempt + 1))
+    done
+    
+    # Verificação final
+    if [ -f "${SERVER_DIR}/VRisingServer.exe" ]; then
+        log_success "Servidor V Rising encontrado!"
+        return 0
+    else
+        log_error "Não foi possível instalar o servidor após ${max_attempts} tentativas."
+        return 1
     fi
 }
 
@@ -249,37 +317,16 @@ start_server() {
     log_info "Query Port: ${QUERY_PORT}"
     log_info "Max Users: ${MAX_USERS}"
     log_info "Game Mode: ${GAME_MODE_TYPE}"
+    log_info "Wine Prefix: ${WINEPREFIX}"
     log_info "=============================================="
     
     cd "${SERVER_DIR}"
-    
-    # Iniciar display virtual
-    log_info "Iniciando display virtual (Xvfb)..."
-    Xvfb :0 -screen 0 1024x768x16 &
-    XVFB_PID=$!
-    export DISPLAY=:0
-    
-    # Aguardar Xvfb iniciar
-    sleep 3
-    
-    if ! kill -0 ${XVFB_PID} 2>/dev/null; then
-        log_error "Falha ao iniciar Xvfb!"
-        exit 1
-    fi
-    log_success "Display virtual iniciado!"
-    
-    # Configurar variáveis de ambiente para Box64/Wine
-    export BOX64_LOG=0
-    export BOX64_NOBANNER=1
-    export WINEDEBUG=-all
-    export WINEPREFIX=/root/.wine
-    export WINEARCH=win64
     
     log_info "Executando VRisingServer.exe via Wine/Box64..."
     log_info "O servidor pode demorar alguns minutos para iniciar na primeira vez..."
     
     # Executar o servidor via Box64 + Wine
-    box64 /opt/wine/bin/wine64 "${SERVER_DIR}/VRisingServer.exe" \
+    exec box64 /opt/wine/bin/wine64 "${SERVER_DIR}/VRisingServer.exe" \
         -persistentDataPath "${SAVES_DIR}" \
         -serverName "${SERVER_NAME}" \
         -saveName "${WORLD_NAME}" \
@@ -297,7 +344,7 @@ shutdown_server() {
     box64 /opt/wine/bin/wineserver -k 2>/dev/null || true
     
     # Matar Xvfb
-    pkill Xvfb 2>/dev/null || true
+    pkill -9 Xvfb 2>/dev/null || true
     
     log_success "Servidor finalizado com sucesso!"
     exit 0
@@ -315,16 +362,23 @@ log_info "=============================================="
 log_info "Timezone: ${TZ}"
 log_info "Server Directory: ${SERVER_DIR}"
 log_info "Saves Directory: ${SAVES_DIR}"
+log_info "Wine Prefix: ${WINEPREFIX}"
 log_info "=============================================="
 
 # Configurar timezone
 ln -sf /usr/share/zoneinfo/${TZ} /etc/localtime 2>/dev/null || true
 
 # Criar diretórios se não existirem
-mkdir -p "${SERVER_DIR}" "${SAVES_DIR}" /data/logs
+mkdir -p "${SERVER_DIR}" "${SAVES_DIR}" "${WINEPREFIX}" /data/logs
+
+# Iniciar display virtual
+init_display || exit 1
+
+# Inicializar Wine
+init_wine || exit 1
 
 # Instalar/atualizar servidor
-install_or_update_server
+install_or_update_server || exit 1
 
 # Configurar servidor
 configure_server
