@@ -14,10 +14,17 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    cap_add:
+      - NET_RAW        # Required for Steam UDP sockets
+      - NET_BIND_SERVICE  # Bind to ports < 1024 if needed
     
-    ports:
-      - "9876:9876/udp"
-      - "9877:9877/udp"
+    # Use host networking for Steam compatibility
+    # Steam's SteamNetworking requires direct access to network interfaces
+    # Without this, GetAdaptersAddresses fails and server crashes
+    network_mode: host
+    
+    # Note: With network_mode: host, ports mapping is not needed
+    # The server will bind directly to host ports 9876/udp and 9877/udp
       
     environment:
       # Server Configuration
