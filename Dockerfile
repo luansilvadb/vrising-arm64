@@ -117,6 +117,10 @@ RUN mkdir -p /opt/wine && \
     wget -q "https://github.com/Kron4ek/Wine-Builds/releases/download/11.0-rc3/wine-11.0-rc3-amd64-wow64.tar.xz" -O wine.tar.xz && \
     tar -xf wine.tar.xz -C /opt/wine --strip-components=1 && \
     rm wine.tar.xz && \
+    # CRITICAL FIX: Remove dnsapi.so to avoid __res_query symbol error
+    # This forces Wine to use builtin DNS handling (no libresolv needed)
+    rm -f /opt/wine/lib/wine/x86_64-unix/dnsapi.so && \
+    rm -f /opt/wine/lib64/wine/x86_64-unix/dnsapi.so && \
     # Verificar arquivos
     ls -la /opt/wine/bin/
 
