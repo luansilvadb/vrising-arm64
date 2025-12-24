@@ -1,22 +1,79 @@
+# =============================================================================
+# V Rising Dedicated Server - Docker Compose
+# =============================================================================
+# Para usar com EasyPanel:
+# 1. Faça push deste repositório para o GitHub
+# 2. No EasyPanel, crie um novo serviço do tipo "Docker"
+# 3. Aponte para o repositório e branch main
+# 4. Configure as variáveis de ambiente conforme necessário
+# =============================================================================
+
 services:
   vrising:
-    image: trueosiris/vrising
-    environment:
-      - TZ=Europe/Paris
-      - SERVERNAME=vrising-TrueOsiris
-    volumes:
-      - type: bind
-        source: /your/host/vrising/server
-        target: /mnt/vrising/server
-        bind:
-          create_host_path: true
-      - type: bind
-        source: /your/host/vrising/persistentdata
-        target: /mnt/vrising/persistentdata
-        bind:
-          create_host_path: true
-    ports:
-      - '9876:9876/udp'
-      - '9877:9877/udp'
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vrising-server
     restart: unless-stopped
-    network_mode: bridge
+
+    # Variáveis de ambiente para configuração
+    environment:
+      # Configurações básicas do servidor
+      - SERVER_NAME=${SERVER_NAME:-V Rising Server}
+      - WORLD_NAME=${WORLD_NAME:-world1}
+      - PASSWORD=${PASSWORD:-}
+      - MAX_USERS=${MAX_USERS:-40}
+
+      # Portas do jogo
+      - GAME_PORT=${GAME_PORT:-9876}
+      - QUERY_PORT=${QUERY_PORT:-9877}
+
+      # Visibilidade do servidor
+      - LIST_ON_MASTER_SERVER=${LIST_ON_MASTER_SERVER:-false}
+      - LIST_ON_EOS=${LIST_ON_EOS:-false}
+
+      # Modo de jogo
+      - GAME_MODE_TYPE=${GAME_MODE_TYPE:-PvP}
+
+      # Timezone
+      - TZ=${TZ:-America/Sao_Paulo}
+
+    # Portas expostas (UDP é obrigatório para V Rising)
+    ports:
+      - "${GAME_PORT:-9876}:${GAME_PORT:-9876}/udp"
+      - "${QUERY_PORT:-9877}:${QUERY_PORT:-9877}/udp"
+
+    # Volumes para persistência de dados
+    volumes:
+      # Arquivos do servidor (instalação do jogo)
+      - vrising-server:/data/server
+      # Saves do mundo e configurações
+      - vrising-saves:/data/saves
+      # Logs
+      - vrising-logs:/data/logs
+
+    # Recursos (ajuste conforme necessário)
+    # EasyPanel gerencia isso automaticamente, mas você pode definir limites
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
+
+    # Healthcheck
+    healthcheck:
+      test: [ "CMD", "nc", "-zu", "localhost", "${GAME_PORT:-9876}" ]
+      interval: 60s
+      timeout: 10s
+      start_period: 300s
+      retries: 3
+
+# Volumes nomeados para persistência
+volumes:
+  vrising-server:
+    driver: local
+  vrising-saves:
+    driver: local
+  vrising-logs:
+    driver: local

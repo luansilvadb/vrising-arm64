@@ -1,4 +1,23 @@
-data/
-server/
+# Ambiente local
+.env
+.env.local
 
-/.vs
+# Logs
+*.log
+logs/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Dados do servidor (não fazer commit!)
+data/
