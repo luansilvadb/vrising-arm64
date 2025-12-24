@@ -207,9 +207,9 @@ configure_server() {
 EOF
     log_success "ServerHostSettings.json atualizado!"
     
-    if [ ! -f "${SETTINGS_DIR}/ServerGameSettings.json" ]; then
-        log_info "Criando ServerGameSettings.json..."
-        cat > "${SETTINGS_DIR}/ServerGameSettings.json" << EOF
+    # Sempre recria ServerGameSettings.json para aplicar mudanças de variáveis
+    log_info "Atualizando ServerGameSettings.json..."
+    cat > "${SETTINGS_DIR}/ServerGameSettings.json" << EOF
 {
   "GameModeType": "${GAME_MODE_TYPE}",
   "CastleDamageMode": "TimeRestricted",
@@ -271,8 +271,7 @@ EOF
   "StarterResourcesId": 0
 }
 EOF
-        log_success "ServerGameSettings.json criado!"
-    fi
+    log_success "ServerGameSettings.json atualizado!"
 }
 
 start_server() {
