@@ -207,9 +207,12 @@ configure_server() {
 EOF
     log_success "ServerHostSettings.json atualizado!"
     
-    # Sempre recria ServerGameSettings.json para aplicar mudanças de variáveis
-    log_info "Atualizando ServerGameSettings.json..."
-    cat > "${SETTINGS_DIR}/ServerGameSettings.json" << EOF
+    # ServerGameSettings.json - Só cria se não existir (gerenciado via EasyPanel File Mount)
+    if [ -f "${SETTINGS_DIR}/ServerGameSettings.json" ]; then
+        log_info "ServerGameSettings.json encontrado - usando configuração existente (File Mount)"
+    else
+        log_info "Criando ServerGameSettings.json padrão..."
+        cat > "${SETTINGS_DIR}/ServerGameSettings.json" << EOF
 {
   "GameModeType": "${GAME_MODE_TYPE}",
   "CastleDamageMode": "TimeRestricted",
@@ -271,7 +274,8 @@ EOF
   "StarterResourcesId": 0
 }
 EOF
-    log_success "ServerGameSettings.json atualizado!"
+        log_success "ServerGameSettings.json padrão criado!"
+    fi
 }
 
 start_server() {
