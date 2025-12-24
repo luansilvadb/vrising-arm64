@@ -127,14 +127,22 @@ RUN mkdir -p /opt/wine && \
     ls -la /opt/wine/bin/
 
 # =============================================================================
-# Instalar SteamCMD (versão Linux x86)
+# Instalar SteamCMD (versão Linux x86) + pré-inicializar
 # =============================================================================
 RUN mkdir -p /opt/steamcmd && \
     cd /opt/steamcmd && \
     wget -q "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" -O steamcmd.tar.gz && \
     tar -xzf steamcmd.tar.gz && \
     rm steamcmd.tar.gz && \
-    chmod +x steamcmd.sh
+    chmod +x steamcmd.sh && \
+    # Pré-inicializar SteamCMD para que ele se atualize durante o build
+    # Isso evita os "warmup runs" durante a inicialização do container
+    echo "Pré-inicializando SteamCMD (isso pode demorar)..." && \
+    for i in 1 2 3; do \
+    box86 /opt/steamcmd/linux32/steamcmd +quit || true; \
+    sleep 2; \
+    done && \
+    echo "SteamCMD pré-inicializado!"
 
 # =============================================================================
 # Criar diretórios necessários

@@ -123,10 +123,14 @@ install_or_update_server() {
     cd "${STEAMCMD_DIR}"
     
     local attempt=1
-    local max_attempts=5
+    local max_attempts=3  # Reduzido: SteamCMD já está pré-inicializado no build
     
     while [ $attempt -le $max_attempts ]; do
-        log_info "Tentativa ${attempt} de ${max_attempts}..."
+        if [ $attempt -le 2 ]; then
+            log_info "Inicializando SteamCMD (etapa ${attempt}/2)..."
+        else
+            log_info "Tentativa ${attempt} de ${max_attempts}..."
+        fi
         
         # Mostrar toda a saída do SteamCMD para debug
         # Ordem correta: force_install_dir -> login -> app_update -> quit
@@ -142,7 +146,12 @@ install_or_update_server() {
             return 0
         fi
         
-        log_warning "Tentativa ${attempt} falhou, aguardando..."
+        # Mensagens mais claras sobre o que está acontecendo
+        if [ $attempt -le 2 ]; then
+            log_info "SteamCMD atualizando-se, continuando..."
+        else
+            log_warning "Tentativa ${attempt} não completou download, retentando..."
+        fi
         sleep 5
         attempt=$((attempt + 1))
     done

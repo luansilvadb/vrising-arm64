@@ -28,9 +28,9 @@ services:
       - GAME_PORT=${GAME_PORT:-9876}
       - QUERY_PORT=${QUERY_PORT:-9877}
 
-      # Visibilidade do servidor
-      - LIST_ON_MASTER_SERVER=${LIST_ON_MASTER_SERVER:-false}
-      - LIST_ON_EOS=${LIST_ON_EOS:-false}
+      # Visibilidade do servidor (true = aparece na lista pública)
+      - LIST_ON_MASTER_SERVER=${LIST_ON_MASTER_SERVER:-true}
+      - LIST_ON_EOS=${LIST_ON_EOS:-true}
 
       # Modo de jogo
       - GAME_MODE_TYPE=${GAME_MODE_TYPE:-PvP}
