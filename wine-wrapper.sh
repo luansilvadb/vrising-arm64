@@ -16,14 +16,24 @@ export DISPLAY="${DISPLAY:-:99}"
 # Caminho do RootFS extraído
 ROOTFS_DIR="${FEX_ROOTFS:-/opt/fex-rootfs}"
 
-# Verifica se wine64 existe no RootFS
-if [ -f "${ROOTFS_DIR}/usr/bin/wine64" ]; then
-    exec FEXInterpreter "${ROOTFS_DIR}/usr/bin/wine64" "$@"
-elif [ -f "${ROOTFS_DIR}/usr/bin/wine" ]; then
-    exec FEXInterpreter "${ROOTFS_DIR}/usr/bin/wine" "$@"
+# Wine64 está em /usr/lib/wine/wine64 ou como wine64-stable symlink
+# Usamos o binário direto em lib/wine/wine64
+WINE_BIN="${ROOTFS_DIR}/usr/lib/wine/wine64"
+
+if [ -e "${WINE_BIN}" ]; then
+    echo "Usando Wine: ${WINE_BIN}"
+    exec FEXInterpreter "${WINE_BIN}" "$@"
 else
-    echo "ERRO: Wine não encontrado em ${ROOTFS_DIR}/usr/bin/"
-    echo "Conteúdo de ${ROOTFS_DIR}/usr/bin/:"
-    ls -la "${ROOTFS_DIR}/usr/bin/" | grep -i wine || echo "Nenhum binário wine encontrado"
-    exit 1
+    # Fallback: tenta wine-stable
+    WINE_BIN="${ROOTFS_DIR}/usr/bin/wine-stable"
+    if [ -e "${WINE_BIN}" ]; then
+        echo "Usando Wine: ${WINE_BIN}"
+        exec FEXInterpreter "${WINE_BIN}" "$@"
+    else
+        echo "ERRO: Wine não encontrado!"
+        echo "Procurado em: ${ROOTFS_DIR}/usr/lib/wine/wine64"
+        echo "Conteúdo de ${ROOTFS_DIR}/usr/lib/wine/:"
+        ls -la "${ROOTFS_DIR}/usr/lib/wine/" 2>/dev/null | head -20 || echo "Diretório não existe"
+        exit 1
+    fi
 fi
