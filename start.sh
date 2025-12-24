@@ -2,14 +2,12 @@
 s=/mnt/vrising/server
 p=/mnt/vrising/persistentdata
 
-# Box64/Box86 environment for ARM64 emulation
-export BOX64_LOG=0
-export BOX86_LOG=0
-export BOX64_LD_LIBRARY_PATH=/opt/wine/wine/lib/wine/x86_64-unix:/lib/x86_64-linux-gnu
-export BOX86_LD_LIBRARY_PATH=/opt/wine/wine/lib/wine/i386-unix:/lib/i386-linux-gnu
+# FEX-Emu environment for ARM64 x86/x64 emulation
 export WINEPREFIX=/home/steam/.wine
 export WINEARCH=win64
 export DISPLAY=:0
+export FEX_TSOENABLED=0
+
 
 term_handler() {
 	echo "Shutting down Server"
@@ -64,22 +62,52 @@ echo " "
 echo "Updating V-Rising Dedicated Server files..."
 echo " "
 
-# Using box86 to run steamcmd binary directly on ARM64
-# First run might just self-update, so we run twice to ensure game download
-echo "Running SteamCMD (first pass - may self-update)..."
-box86 /home/steam/steamcmd/linux32/steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir "$s" +login anonymous +app_update 1829350 $beta_arg validate +quit
+# Create a SteamCMD script file
+STEAMCMD_SCRIPT="/tmp/steamcmd_script.txt"
+cat > "$STEAMCMD_SCRIPT" << EOF
+@ShutdownOnFailedCommand 1
+@NoPromptForPassword 1
+@sSteamCmdForcePlatformType windows
+force_install_dir $s
+login anonymous
+app_update 1829350 $beta_arg validate
+quit
+EOF
 
-# Check if game was downloaded, if not, run again
+echo "SteamCMD script created:"
+cat "$STEAMCMD_SCRIPT"
+echo " "
+
+# Using FEX-Emu to run steamcmd (better compatibility than Box86)
+echo "Running SteamCMD via FEX-Emu..."
+cd /home/steam/steamcmd
+FEXBash ./steamcmd.sh +runscript "$STEAMCMD_SCRIPT"
+
+# Check if game was downloaded, if not, try alternative approach
 if [ ! -f "$s/VRisingServer.exe" ]; then
     echo " "
-    echo "Game not found, running SteamCMD again..."
-    box86 /home/steam/steamcmd/linux32/steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir "$s" +login anonymous +app_update 1829350 $beta_arg validate +quit
+    echo "Game not found after first attempt. Running SteamCMD again..."
+    FEXBash ./steamcmd.sh +@sSteamCmdForcePlatformType windows +force_install_dir "$s" +login anonymous +app_update 1829350 validate +quit
+fi
+
+# If still not found, try one more time with direct command
+if [ ! -f "$s/VRisingServer.exe" ]; then
+    echo " "
+    echo "Final attempt with direct SteamCMD execution..."
+    FEXBash ./steamcmd.sh +@sSteamCmdForcePlatformType windows +force_install_dir "$s" +login anonymous +app_update 1829350 validate +quit
 fi
 
 # Final check
 if [ ! -f "$s/VRisingServer.exe" ]; then
+    echo "=============================================="
     echo "ERROR: V Rising server files were not downloaded!"
-    echo "Check SteamCMD logs for errors."
+    echo "This may be a FEX-Emu/SteamCMD compatibility issue."
+    echo "Check /home/steam/Steam/logs/ for details."
+    echo "=============================================="
+    ls -la "$s" 2>/dev/null || echo "Server directory is empty or doesn't exist"
+else
+    echo "V Rising server files downloaded successfully!"
+    ls -la "$s/VRisingServer.exe"
 fi
 
 printf "steam_appid: "
@@ -269,11 +297,11 @@ rm /tmp/.X0-lock 2>&1
 echo " "
 echo "Starting Xvfb"
 Xvfb :0 -screen 0 1024x768x16 &
-echo "Launching wine64 V Rising via Box64"
+echo "Launching wine64 V Rising via FEX-Emu"
 echo " "
 v() {
-	# Use box64 to run wine64 on ARM64
-	DISPLAY=:0.0 box64 /opt/wine/wine/bin/wine64 /mnt/vrising/server/VRisingServer.exe -persistentDataPath $p -serverName "$SERVERNAME" "$override_savename" -logFile "$p/$logfile" "$game_port" "$query_port" 2>&1 &
+	# Use FEX-Emu to run wine64 on ARM64
+	DISPLAY=:0.0 FEXInterpreter /opt/wine/wine/bin/wine64 /mnt/vrising/server/VRisingServer.exe -persistentDataPath $p -serverName "$SERVERNAME" "$override_savename" -logFile "$p/$logfile" "$game_port" "$query_port" 2>&1 &
 }
 v
 # Gets the PID of the last command

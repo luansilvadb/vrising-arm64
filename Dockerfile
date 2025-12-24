@@ -19,39 +19,29 @@ RUN apt update -y && \
     xvfb \
     xserver-xorg-video-dummy \
     cabextract \
-    libfreetype6 \
-    libfontconfig1 \
     git \
     cmake \
+    ninja-build \
     build-essential \
+    pkg-config \
+    ccache \
+    clang \
+    llvm \
+    lld \
+    binfmt-support \
+    libsdl2-dev \
+    libepoxy-dev \
+    libssl-dev \
     python3 \
+    python3-setuptools \
+    python-is-python3 \
+    squashfs-tools \
+    squashfuse \
+    fuse \
+    libc-bin \
     sudo
 
-# Add Box86 and Box64 repositories
-RUN wget https://ryanfortner.github.io/box64-debs/box64.list -O /etc/apt/sources.list.d/box64.list && \
-    wget -qO- https://ryanfortner.github.io/box64-debs/KEY.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/box64-debs-archive-keyring.gpg && \
-    wget https://ryanfortner.github.io/box86-debs/box86.list -O /etc/apt/sources.list.d/box86.list && \
-    wget -qO- https://ryanfortner.github.io/box86-debs/KEY.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/box86-debs-archive-keyring.gpg
-
-# Enable armhf architecture for Box86 dependencies
-RUN dpkg --add-architecture armhf && \
-    apt update -y
-
-# Install Box64 and Box86
-RUN apt install -y box64-generic-arm box86-generic-arm:armhf || \
-    apt install -y box64-rpi4arm64 box86-rpi4arm64:armhf || \
-    apt install -y box64 box86:armhf || \
-    (echo "Trying alternative box install" && apt install -y box64 box86)
-
-# Install armhf libraries needed by Box86
-RUN apt install -y \
-    libc6:armhf \
-    libstdc++6:armhf \
-    libncurses5:armhf \
-    libncurses6:armhf \
-    libtinfo6:armhf || true
-
-# Install native X11 libraries needed by Box64 for Wine
+# Install native X11 and graphics libraries
 RUN apt install -y \
     libxinerama1 \
     libxrender1 \
@@ -66,36 +56,52 @@ RUN apt install -y \
     libfontconfig1 \
     libfreetype6 \
     libosmesa6 \
-    libgl1-mesa-glx \
-    libgl1-mesa-dri \
     mesa-utils \
     libpulse0 \
     libasound2 \
     libglib2.0-0 || true
+
+# Install FEX-Emu from official PPA (better compatibility than Box86 for SteamCMD)
+RUN add-apt-repository -y ppa:fex-emu/fex && \
+    apt update -y && \
+    apt install -y fex-emu-arm64ec fex-emu-binfmt32 fex-emu-binfmt64 || \
+    apt install -y fex-emu || \
+    (echo "FEX PPA failed, building from source..." && \
+    cd /tmp && \
+    git clone --recurse-submodules https://github.com/FEX-Emu/FEX.git && \
+    cd FEX && \
+    mkdir Build && \
+    cd Build && \
+    CC=clang CXX=clang++ cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DENABLE_LTO=True -DBUILD_TESTS=False -G Ninja .. && \
+    ninja && \
+    ninja install && \
+    ninja binfmt_misc_32 && \
+    ninja binfmt_misc_64 && \
+    cd / && rm -rf /tmp/FEX)
+
+# Setup FEX RootFS for x86/x86_64 support
+RUN FEXRootFSFetcher -y -x || echo "RootFS fetch skipped or failed, will use thunk mode"
 
 # Setup Steam user with proper permissions
 RUN useradd -m -s /bin/bash steam && \
     echo "steam ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
     mkdir -p /home/steam/.steam && \
     mkdir -p /home/steam/.wine && \
+    mkdir -p /home/steam/.fex-emu && \
     mkdir -p /mnt/vrising/server && \
     mkdir -p /mnt/vrising/persistentdata && \
     chown -R steam:steam /home/steam && \
     chown -R steam:steam /mnt/vrising
 
-# Download and setup Wine for ARM64 (using box64)
+# Download and setup Wine for x86_64 (using FEX-Emu)
 RUN mkdir -p /opt/wine && \
     cd /opt/wine && \
     wget -q https://github.com/Kron4ek/Wine-Builds/releases/download/9.0/wine-9.0-amd64.tar.xz && \
     tar -xf wine-9.0-amd64.tar.xz && \
     rm wine-9.0-amd64.tar.xz && \
-    mv wine-9.0-amd64 wine && \
-    ln -sf /opt/wine/wine/bin/wine64 /usr/local/bin/wine64 && \
-    ln -sf /opt/wine/wine/bin/wine /usr/local/bin/wine && \
-    ln -sf /opt/wine/wine/bin/wineserver /usr/local/bin/wineserver && \
-    ln -sf /opt/wine/wine/bin/winecfg /usr/local/bin/winecfg
+    mv wine-9.0-amd64 wine
 
-# Download SteamCMD (x86 Linux binary, will run via box86)
+# Download SteamCMD (x86 Linux binary, will run via FEX-Emu)
 USER steam
 WORKDIR /home/steam
 
@@ -107,20 +113,23 @@ RUN mkdir -p /home/steam/steamcmd && \
     chmod +x /home/steam/steamcmd/steamcmd.sh && \
     chmod +x /home/steam/steamcmd/linux32/steamcmd
 
+# Configure FEX for steam user
+RUN mkdir -p /home/steam/.fex-emu && \
+    echo '{"Config":{"RootFS":""}}' > /home/steam/.fex-emu/Config.json || true
+
 # Switch back to root for final setup
 USER root
 
-# Create wrapper script for steamcmd using box86 (pointing to the actual binary)
-RUN echo '#!/bin/bash\nexec box86 /home/steam/steamcmd/linux32/steamcmd "$@"' > /usr/local/bin/steamcmd && \
+# Create wrapper scripts
+RUN echo '#!/bin/bash\nFEXBash /home/steam/steamcmd/steamcmd.sh "$@"' > /usr/local/bin/steamcmd && \
     chmod +x /usr/local/bin/steamcmd
+
+RUN echo '#!/bin/bash\nFEXInterpreter /opt/wine/wine/bin/wine64 "$@"' > /usr/local/bin/wine64 && \
+    chmod +x /usr/local/bin/wine64
 
 # Add Wine environment variables
 ENV WINEARCH=win64
 ENV WINEPREFIX=/home/steam/.wine
-ENV BOX64_LOG=0
-ENV BOX86_LOG=0
-ENV BOX64_LD_LIBRARY_PATH=/opt/wine/wine/lib/wine/x86_64-unix:/lib/x86_64-linux-gnu
-ENV BOX86_LD_LIBRARY_PATH=/opt/wine/wine/lib/wine/i386-unix:/lib/i386-linux-gnu
 ENV HOME=/home/steam
 ENV USER=steam
 
