@@ -18,8 +18,17 @@ echo "--- Updating V Rising (AppID: 1829350) ---"
 echo "--- SteamCMD will download Windows version to /data/server ---"
 
 # Run SteamCMD with verbose output using explicit box86
+# IMPORTANT: SteamCMD must be run TWICE!
+# First run: SteamCMD updates itself and restarts, losing all command-line args
+# Second run: Actual game download with commands
 echo "--- Running SteamCMD via box86 ---"
 cd /usr/games/steamcmd
+
+echo "--- Step 1: Ensure SteamCMD is fully updated ---"
+box86 ./linux32/steamcmd +quit 2>&1 | tee /tmp/steamcmd_update.log
+echo "--- SteamCMD self-update exit code: $? ---"
+
+echo "--- Step 2: Download V Rising server ---"
 box86 ./linux32/steamcmd \
     +@sSteamCmdForcePlatformType windows \
     +force_install_dir /data/server \
