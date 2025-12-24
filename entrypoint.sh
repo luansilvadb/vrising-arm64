@@ -40,7 +40,15 @@ export WINEDLLOVERRIDES="winemenubuilder.exe=d;mscoree=d;mshtml=d"
 if [ ! -f "$WINEPREFIX/system.reg" ]; then
     echo "[1/4] Inicializando Wine prefix..."
     /app/wine-wrapper.sh wineboot --init
-    echo "Wine prefix criado."
+    
+    # Configura Wine para emular Windows 10 (fix para SteamCMD)
+    echo "Configurando Wine como Windows 10..."
+    /app/wine-wrapper.sh reg add "HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion" /v CurrentVersion /t REG_SZ /d "10.0" /f
+    /app/wine-wrapper.sh reg add "HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion" /v CurrentBuildNumber /t REG_SZ /d "19041" /f
+    /app/wine-wrapper.sh reg add "HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion" /v ProductName /t REG_SZ /d "Windows 10 Pro" /f
+    /app/wine-wrapper.sh reg add "HKCU\\Software\\Wine" /v Version /t REG_SZ /d "win10" /f
+    
+    echo "Wine prefix criado e configurado para Windows 10."
 else
     echo "[1/4] Wine prefix já existe, pulando inicialização."
 fi
@@ -58,7 +66,9 @@ if [ ! -f "$STEAM_DIR/VRisingServer.exe" ] || [ "${FORCE_UPDATE:-false}" == "tru
     fi
     
     # Executa SteamCMD via Wine+FEX
+    # -overrideminos: ignora verificação de versão do OS (necessário para Wine)
     /app/wine-wrapper.sh "$STEAM_DIR/steamcmd/steamcmd.exe" \
+        -overrideminos \
         +@sSteamCmdForcePlatformType windows \
         +force_install_dir "$STEAM_DIR" \
         +login anonymous \
