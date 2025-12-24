@@ -60,18 +60,16 @@ RUN dpkg --add-architecture armhf && \
     wget curl tar cabextract \
     xvfb xauth \
     libgl1 libx11-6 \
+    libgl1 libx11-6 libfreetype6 \
     netcat \
-    # Wine Staging Dependencies
-    gpg-agent software-properties-common && \
-    # Install Wine Staging
-    mkdir -pm755 /etc/apt/keyrings && \
-    wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key && \
-    wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/jammy/winehq-jammy.sources && \
-    apt-get update && \
-    apt-get install -y --install-recommends winehq-staging && \
+    # Dependencies for portable Wine extraction
+    xz-utils && \
     # Cleanup
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    # Install Portable Wine (x86_64) for V Rising
+    mkdir -p /opt/wine && \
+    wget -qO- https://github.com/Kron4ek/Wine-Builds/releases/download/9.4/wine-9.4-staging-amd64.tar.xz | tar xJ -C /opt/wine --strip-components=1
 
 # 2. Copy Box64/Box86 from builder
 COPY --from=builder /tmp/install/usr/local/bin/box64 /usr/local/bin/box64
@@ -114,7 +112,9 @@ WORKDIR /app
 VOLUME ["/data", "/steam"]
 EXPOSE 27015/udp 27016/udp
 
+
 # Pre-configuration for Wine/Box64
+ENV PATH="/opt/wine/bin:$PATH"
 ENV WINEPREFIX="/data/wine-prefix"
 ENV WINEARCH=win64
 ENV BOX64_DYNAREC=1
