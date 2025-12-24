@@ -29,42 +29,31 @@ RUN add-apt-repository -y ppa:fex-emu/fex && \
 
 # 3. Cria usuário não-root e diretórios
 RUN useradd -u 1000 -m -s /bin/bash vrising && \
-    mkdir -p /app /data /steam \
-             /home/vrising/.fex-emu && \
+    mkdir -p /app /data /steam /home/vrising/.fex-emu && \
     chown -R vrising:vrising /app /data /steam /home/vrising
 
 # 4. Baixa e EXTRAI RootFS Ubuntu 22.04 (evita necessidade de FUSE)
 USER root
-ENV ROOTFS_URL="https://rootfs.fex-emu.gg/Ubuntu_22_04/2025-01-08/Ubuntu_22_04.sqsh"
 ENV ROOTFS_DIR="/opt/fex-rootfs"
+ENV ROOTFS_URL="https://rootfs.fex-emu.gg/Ubuntu_22_04/2025-01-08/Ubuntu_22_04.sqsh"
 
 RUN echo "=== Downloading FEX RootFS ===" && \
     wget -q --show-progress -O /tmp/rootfs.sqsh "${ROOTFS_URL}" && \
     echo "=== Extracting RootFS (this takes a while) ===" && \
     unsquashfs -d "${ROOTFS_DIR}" /tmp/rootfs.sqsh && \
     rm /tmp/rootfs.sqsh && \
-    chown -R vrising:vrising "${ROOTFS_DIR}" && \
     echo "=== RootFS extracted ===" && \
-    ls -la "${ROOTFS_DIR}/usr/bin/" | head -20
+    ls -la "${ROOTFS_DIR}/usr/bin/" | grep -i wine | head -10
 
-# 5. Cria symlink para que FEX encontre o RootFS no local padrão
-USER vrising
+# 5. Cria symlink no local padrão do FEX E para root também
 RUN ln -sf "${ROOTFS_DIR}" /home/vrising/.fex-emu/RootFS && \
-    ls -la /home/vrising/.fex-emu/ && \
-    echo "RootFS symlink created"
+    mkdir -p /root/.fex-emu && \
+    ln -sf "${ROOTFS_DIR}" /root/.fex-emu/RootFS && \
+    chown -R vrising:vrising /home/vrising/.fex-emu && \
+    echo "=== RootFS symlinks created ===" && \
+    ls -la /home/vrising/.fex-emu/
 
-# 6. Verifica que Wine está disponível no RootFS
-RUN echo "=== Checking Wine in RootFS ===" && \
-    ls -la "${ROOTFS_DIR}/usr/bin/wine"* 2>/dev/null || echo "Wine not in RootFS (will need to install)" && \
-    ls -la "${ROOTFS_DIR}/usr/bin/" | grep -i wine || true
-
-# 7. Testa FEXInterpreter
-RUN echo "=== Testing FEX ===" && \
-    FEXInterpreter "${ROOTFS_DIR}/bin/true" && \
-    echo "FEX working!"
-
-# 8. Copia scripts
-USER root
+# 6. Copia scripts
 COPY --chown=vrising:vrising entrypoint.sh /app/
 COPY --chown=vrising:vrising wine-wrapper.sh /app/
 RUN chmod +x /app/*.sh
@@ -72,8 +61,9 @@ RUN chmod +x /app/*.sh
 WORKDIR /app
 USER vrising
 
-# Variáveis de ambiente para FEX
+# Variáveis de ambiente - FEX_ROOTFS é lida pelo FEX
 ENV FEX_ROOTFS="${ROOTFS_DIR}"
+ENV HOME="/home/vrising"
 
 EXPOSE 27015/udp 27016/udp
 
