@@ -148,6 +148,16 @@ if [ ! -f "./VRisingServer.exe" ]; then
     exit 1
 fi
 
+# CRITICAL FIX: Remove lib_burst_generated.dll for ARM64
+# This DLL uses AVX/AVX2 instructions which are NOT supported by ARM64 emulation (Box64)
+# TrueOsiris uses the same fix for non-AVX systems
+# Without this, the server crashes immediately after Steam GameServer initialization
+BURST_DLL="VRisingServer_Data/Plugins/x86_64/lib_burst_generated.dll"
+if [ -f "$BURST_DLL" ]; then
+    echo "--- ARM64 Fix: Renaming $BURST_DLL (AVX not supported) ---"
+    mv "$BURST_DLL" "${BURST_DLL}.bak"
+fi
+
 echo "--- Command: wine64 ./VRisingServer.exe -persistentDataPath Z:\\data\\save-data -serverName $SERVER_NAME -saveName $SAVE_NAME ---"
 
 # Enable Wine debug for crash diagnosis (remove -all to see errors)
