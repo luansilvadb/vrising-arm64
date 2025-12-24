@@ -10,13 +10,17 @@ services:
     stop_signal: SIGTERM
     
     # Security hardening for production
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_RAW        # Required for Steam UDP sockets
-      - NET_BIND_SERVICE  # Bind to ports < 1024 if needed
+    # NOTE: Temporarily using privileged for debugging Steam network issue
+    # After confirming it works, we'll reduce to minimal required capabilities
+    privileged: true
+    # security_opt:
+    #   - no-new-privileges:true
+    # cap_drop:
+    #   - ALL
+    # cap_add:
+    #   - NET_RAW        # Required for Steam UDP sockets
+    #   - NET_BIND_SERVICE  # Bind to ports < 1024 if needed
+    #   - SYS_ADMIN      # May be needed for Wine/Steam
     
     # Use host networking for Steam compatibility
     # Steam's SteamNetworking requires direct access to network interfaces

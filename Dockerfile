@@ -29,7 +29,7 @@ RUN dpkg --add-architecture armhf \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         wget curl gnupg software-properties-common xvfb xz-utils cabextract tar unzip \
-        locales file ca-certificates gosu \
+        locales file ca-certificates gosu libcap2-bin \
         # ARM64 libraries for Box64 (Wine x86_64 emulation)
         libgl1 libx11-6 libfontconfig1 libxinerama1 libxrender1 libxcomposite1 \
         libxi6 libxcursor1 libxrandr2 libxxf86vm1 libfreetype6 libglu1-mesa \
@@ -58,7 +58,10 @@ RUN dpkg --add-architecture armhf \
 RUN mkdir -p /opt/wine \
     && wget -q https://github.com/Kron4ek/Wine-Builds/releases/download/${WINE_VERSION}/wine-${WINE_VERSION}-staging-amd64.tar.xz -O /tmp/wine.tar.xz \
     && tar -xf /tmp/wine.tar.xz -C /opt/wine --strip-components=1 \
-    && rm /tmp/wine.tar.xz
+    && rm /tmp/wine.tar.xz \
+    # Give Wine network capabilities for GetAdaptersAddresses to work
+    && setcap cap_net_raw+epi /opt/wine/bin/wine-preloader || true \
+    && setcap cap_net_raw+epi /opt/wine/bin/wine64-preloader || true
 
 # Create Box64 wrappers for Wine binaries
 RUN mkdir -p /usr/local/bin \
@@ -120,6 +123,11 @@ USER root
 # Copy init script (runs as root to fix permissions, then drops to vrising)
 COPY init.sh /usr/local/bin/init.sh
 RUN chmod +x /usr/local/bin/init.sh
+
+# Give Wine network capabilities (needs to be done as root)
+# This helps with Steam's GetAdaptersAddresses call
+RUN setcap cap_net_raw+epi /opt/wine/bin/wine-preloader 2>/dev/null || true \
+    && setcap cap_net_raw+epi /opt/wine/bin/wine64-preloader 2>/dev/null || true
 
 # Cleanup /tmp just in case
 RUN rm -rf /tmp/.X11-unix
