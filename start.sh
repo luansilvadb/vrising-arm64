@@ -167,8 +167,10 @@ export WINEDEBUG="err+all,fixme-all"
 export DISPLAY=:99
 
 # Launch process in background to allow trap to catch signals
-# NOTE: Removed -batchmode and -nographics as TrueOsiris works without them
+# Using -batchmode and -nographics for headless server operation
 wine64 ./VRisingServer.exe \
+    -batchmode \
+    -nographics \
     -persistentDataPath "Z:\\data\\save-data" \
     -serverName "$SERVER_NAME" \
     -saveName "$SAVE_NAME" \
