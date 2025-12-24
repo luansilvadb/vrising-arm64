@@ -4,8 +4,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV STEAMCMD_DIR="/usr/games/steamcmd"
 ENV PATH="$PATH:$STEAMCMD_DIR:/opt/wine/bin"
 
-# Install basics
-RUN apt-get update && apt-get install -y \
+# Enable armhf architecture (for Box86/SteamCMD)
+RUN dpkg --add-architecture armhf \
+    && apt-get update \
+    && apt-get install -y \
     wget \
     curl \
     gnupg \
@@ -17,6 +19,9 @@ RUN apt-get update && apt-get install -y \
     cabextract \
     tar \
     unzip \
+    libc6:armhf \
+    libstdc++6:armhf \
+    libncurses6:armhf \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Box86 (for SteamCMD) and Box64 (for V Rising / Wine)
@@ -24,7 +29,8 @@ RUN wget https://ryanfortner.github.io/box86-debs/box86.list -O /etc/apt/sources
     && wget -qO- https://ryanfortner.github.io/box86-debs/KEY.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/box86-debs-archive-keyring.gpg \
     && wget https://ryanfortner.github.io/box64-debs/box64.list -O /etc/apt/sources.list.d/box64.list \
     && wget -qO- https://ryanfortner.github.io/box64-debs/KEY.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/box64-debs-archive-keyring.gpg \
-    && apt-get update && apt-get install -y box86 box64 \
+    && apt-get update \
+    && apt-get install -y box64 box86:armhf \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Wine x86_64 (using Kron4ek's builds for portable usage)
