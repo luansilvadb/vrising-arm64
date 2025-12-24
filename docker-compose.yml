@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  vrising:
+    build: .
+    image: vrising-arm64
+    container_name: vrising-server
+    restart: unless-stopped
+    ports:
+      - "9876:9876/udp"
+      - "9877:9877/udp"
+    environment:
+      - SERVER_NAME=MyVServer
+      - SAVE_NAME=world1
+    volumes:
+      - ./server-data:/data
+    # Increase shared memory size just in case, though usually fine.
+    shm_size: '2gb'
+    tty: true
+    stdin_open: true
