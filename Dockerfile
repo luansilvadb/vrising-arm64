@@ -24,13 +24,13 @@ RUN dpkg --add-architecture armhf \
     libncurses6:armhf \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Box86 (for SteamCMD) and Box64 (for V Rising / Wine)
+# Install Box86 (using generic ARM build) and Box64
 RUN wget https://ryanfortner.github.io/box86-debs/box86.list -O /etc/apt/sources.list.d/box86.list \
     && wget -qO- https://ryanfortner.github.io/box86-debs/KEY.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/box86-debs-archive-keyring.gpg \
     && wget https://ryanfortner.github.io/box64-debs/box64.list -O /etc/apt/sources.list.d/box64.list \
     && wget -qO- https://ryanfortner.github.io/box64-debs/KEY.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/box64-debs-archive-keyring.gpg \
     && apt-get update \
-    && apt-get install -y box64 box86:armhf \
+    && apt-get install -y box64 box86-generic-arm:armhf \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Wine x86_64 (using Kron4ek's builds for portable usage)
