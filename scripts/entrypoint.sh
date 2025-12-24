@@ -272,22 +272,22 @@ start_server() {
         exit 1
     fi
     
-    if [ ! -f "/opt/wine/bin/wine64" ]; then
-        log_error "wine64 não encontrado em /opt/wine/bin/"
+    if [ ! -f "/opt/wine/bin/wine" ]; then
+        log_error "wine não encontrado em /opt/wine/bin/"
         ls -la /opt/wine/bin/ 2>/dev/null || log_error "Diretório /opt/wine/bin/ não existe"
         exit 1
     fi
     
     log_info "Executando VRisingServer.exe via Box64 + Wine..."
-    log_info "Wine: /opt/wine/bin/wine64"
+    log_info "Wine: /opt/wine/bin/wine"
     log_info "Server: ${SERVER_DIR}/VRisingServer.exe"
     
     # Adicionar /opt/wine/bin ao PATH para Box64 encontrar
     export PATH="/opt/wine/bin:${PATH}"
     export BOX64_PATH="/opt/wine/bin:/usr/local/bin:/usr/bin"
     
-    # Executar via box64 com caminho completo
-    exec /usr/local/bin/box64 /opt/wine/bin/wine64 "${SERVER_DIR}/VRisingServer.exe" \
+    # Executar via box64 com caminho completo (usar wine, não wine64 - WOW64 é unificado)
+    exec /usr/local/bin/box64 /opt/wine/bin/wine "${SERVER_DIR}/VRisingServer.exe" \
         -persistentDataPath "${SAVES_DIR}" \
         -serverName "${SERVER_NAME}" \
         -saveName "${WORLD_NAME}" \
