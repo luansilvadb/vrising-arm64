@@ -37,14 +37,25 @@ RUN useradd -u 1000 -m -s /bin/bash vrising && \
 # 4. Baixa RootFS via FEXRootFSFetcher com respostas automáticas
 USER vrising
 # Respostas: y (baixar), 0 (primeira opção), y (extrair), y (usar como default)
-RUN printf 'y\n0\ny\ny\n' | FEXRootFSFetcher || \
-    echo "Warning: FEXRootFSFetcher may have issues, continuing..."
+RUN printf 'y\n0\ny\ny\n' | FEXRootFSFetcher && \
+    echo "=== RootFS download complete ==="
 
-# 5. Instala Wine64 dentro do RootFS extraído
-RUN FEXBash -c "apt-get update && apt-get install -y --no-install-recommends wine64 winbind && rm -rf /var/lib/apt/lists/*" || \
-    echo "Warning: Wine installation may have issues, continuing..."
+# 5. Verifica RootFS e lista conteúdo
+RUN echo "=== Checking RootFS ==="  && \
+    ls -la $HOME/.fex-emu/ && \
+    ls -la $HOME/.fex-emu/RootFS/ 2>/dev/null || echo "RootFS folder not found"
 
-# 6. Copia scripts (volta para root temporariamente)
+# 6. Instala Wine64 dentro do RootFS extraído
+RUN echo "=== Installing Wine via FEXBash ==="  && \
+    FEXBash -c "apt-get update && apt-get install -y wine64 && rm -rf /var/lib/apt/lists/*" && \
+    echo "=== Wine installation complete ==="
+
+# 7. Verifica Wine instalado
+RUN echo "=== Verifying Wine ==="  && \
+    ls -la $HOME/.fex-emu/RootFS/usr/bin/wine* 2>/dev/null || echo "Wine binaries not found" && \
+    FEXBash -c "which wine64" || echo "Wine not in PATH"
+
+# 8. Copia scripts (volta para root temporariamente)
 USER root
 COPY --chown=vrising:vrising entrypoint.sh /app/
 COPY --chown=vrising:vrising wine-wrapper.sh /app/
