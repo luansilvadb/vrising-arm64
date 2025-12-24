@@ -23,7 +23,7 @@ RUN dpkg --add-architecture armhf \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         wget curl gnupg software-properties-common xvfb xz-utils cabextract tar unzip \
-        locales file ca-certificates \
+        locales file ca-certificates gosu \
         # ARM64 libraries for Box64 (Wine x86_64 emulation)
         libgl1 libx11-6 libfontconfig1 libxinerama1 libxrender1 libxcomposite1 \
         libxi6 libxcursor1 libxrandr2 libxxf86vm1 libfreetype6 libglu1-mesa \
@@ -108,10 +108,13 @@ RUN mkdir -p /home/vrising/.wine /tmp/.X11-unix \
 COPY --chown=vrising:vrising start.sh /usr/local/bin/start.sh
 RUN chmod +x /usr/local/bin/start.sh
 
+# Copy init script (runs as root to fix permissions, then drops to vrising)
+COPY init.sh /usr/local/bin/init.sh
+RUN chmod +x /usr/local/bin/init.sh
+
 # Cleanup /tmp just in case
 USER root
 RUN rm -rf /tmp/.X11-unix
-USER vrising
 
 WORKDIR /data
 VOLUME /data
@@ -120,4 +123,6 @@ VOLUME /data
 EXPOSE 9876/udp
 EXPOSE 9877/udp
 
-CMD ["/usr/local/bin/start.sh"]
+# Run init.sh as root - it will fix permissions then drop to vrising user
+CMD ["/usr/local/bin/init.sh"]
+

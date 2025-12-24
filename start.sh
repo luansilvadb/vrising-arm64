@@ -48,8 +48,7 @@ export BOX86_DYNAREC_BIGBLOCK="${BOX86_DYNAREC_BIGBLOCK:-2}"
 export BOX86_DYNAREC_STRONGMEM="${BOX86_DYNAREC_STRONGMEM:-1}"
 export BOX86_LOG="${BOX86_LOG:-0}"
 
-# Ensure directories exist (if mapped as volumes, might be owned by root initially, but we are running as vrising)
-# We assume the user has handled permissions on the host side for bind mounts.
+# Ensure directories exist (init.sh already fixed ownership as root)
 mkdir -p /data/server /data/save-data /data/wine-prefix
 
 # Export Wine Environment

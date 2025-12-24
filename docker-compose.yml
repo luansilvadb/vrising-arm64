@@ -42,7 +42,7 @@ services:
       - STAGING_SHARED_MEMORY=1
       
     volumes:
-      # Data persistence - Ensure these permissions match UID 1000:1000 on host!
+      # Data persistence - init.sh will fix permissions automatically
       - ./server-data:/data
     
     # Resource limits for 4 cores, 25GB RAM
@@ -84,3 +84,4 @@ services:
     
     tty: true
     stdin_open: true
+
