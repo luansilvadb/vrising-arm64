@@ -47,11 +47,11 @@ RUN echo "=== Downloading FEX RootFS ===" && \
     echo "=== RootFS extracted ===" && \
     ls -la "${ROOTFS_DIR}/usr/bin/" | head -20
 
-# 5. Configura FEX para usar o RootFS extraído
+# 5. Cria symlink para que FEX encontre o RootFS no local padrão
 USER vrising
-RUN mkdir -p /home/vrising/.fex-emu && \
-    echo '{"Config":{"RootFS":"'"${ROOTFS_DIR}"'"}}' > /home/vrising/.fex-emu/Config.json && \
-    cat /home/vrising/.fex-emu/Config.json
+RUN ln -sf "${ROOTFS_DIR}" /home/vrising/.fex-emu/RootFS && \
+    ls -la /home/vrising/.fex-emu/ && \
+    echo "RootFS symlink created"
 
 # 6. Verifica que Wine está disponível no RootFS
 RUN echo "=== Checking Wine in RootFS ===" && \
