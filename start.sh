@@ -153,10 +153,12 @@ echo "--- Command: wine64 ./VRisingServer.exe -persistentDataPath Z:\\data\\save
 # Enable Wine debug for crash diagnosis (remove -all to see errors)
 export WINEDEBUG="err+all,fixme-all"
 
+# Set display for Wine (must match Xvfb display)
+export DISPLAY=:99
+
 # Launch process in background to allow trap to catch signals
+# NOTE: Removed -batchmode and -nographics as TrueOsiris works without them
 wine64 ./VRisingServer.exe \
-    -batchmode \
-    -nographics \
     -persistentDataPath "Z:\\data\\save-data" \
     -serverName "$SERVER_NAME" \
     -saveName "$SAVE_NAME" \
