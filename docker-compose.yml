@@ -19,7 +19,7 @@ services:
     # Variáveis de ambiente para configuração
     environment:
       # Configurações básicas do servidor
-      - SERVER_NAME=${SERVER_NAME:-V Rising Server}
+      - SERVER_NAME=${SERVER_NAME:-Velion}
       - WORLD_NAME=${WORLD_NAME:-world1}
       - PASSWORD=${PASSWORD:-}
       - MAX_USERS=${MAX_USERS:-40}
