@@ -14,9 +14,9 @@ RUN git clone --depth 1 --recurse-submodules --branch FEX-2512 https://github.co
 WORKDIR /build/FEX
 RUN CC=clang-15 CXX=clang++-15 cmake -B Build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CXX_FLAGS="-mcpu=neoverse-n1 -O3 -flto" \
+    -DCMAKE_CXX_FLAGS="-mcpu=neoverse-n1 -O3" \
     -DENABLE_VIXL_SIMULATOR=OFF \
-    -DENABLE_LTO=ON \
+    -DENABLE_LTO=OFF \
     -DENABLE_JIT=ON \
     -DBUILD_TESTING=OFF
 RUN cmake --build Build/ -j$(nproc) && cmake --install Build/ --prefix /opt/fex
