@@ -22,7 +22,7 @@ services:
       - SERVER_NAME=${SERVER_NAME:-Velion}
       - WORLD_NAME=${WORLD_NAME:-world1}
       - PASSWORD=${PASSWORD:-}
-      - MAX_USERS=${MAX_USERS:-40}
+      - MAX_USERS=${MAX_USERS:-100}
 
       # Portas do jogo
       - GAME_PORT=${GAME_PORT:-9876}
