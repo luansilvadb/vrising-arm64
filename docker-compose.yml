@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  vrising:
+    build: .
+    image: vrising-arm64:latest
+    container_name: vrising-server
+    restart: unless-stopped
+    
+    # User config matching the Dockerfile (UID 10000)
+    user: "10000:10000"
+    
+    # Network: Host mode is often best for UDP game servers, 
+    # but port mapping is safer for cloud security groups.
+    ports:
+      - "27015:27015/udp"
+      - "27016:27016/udp"
+    
+    environment:
+      - TZ=UTC
+      - VR_SERVER_NAME=My Ampere Server
+      - VR_WORLD_NAME=world1
+      - VR_MAX_PLAYERS=20
+      - VR_PASSWORD=changeme123
+      # Advanced Box64 tuning (already defaults in wrapper, but overrides possible)
+      - BOX64_LOG=0
+      
+    volumes:
+      - ./data/server-data:/data
+      - ./data/steam-cache:/steam
+      # tmpfs for ephemeral winetricks/temp files to save disk I/O
+      - type: tmpfs
+        target: /tmp
+    
+    # Security Hardening
+    security_opt:
+      - no-new-privileges:true
+      # Ensure we only drop what we don't need. 
+      # 'ALL' might be too aggressive if Wine needs some ptrace, 
+      # but usually Box64 handles it in user mode.
+      # Testing with default recommended caps.
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      
+    # Oracle Cloud Ampere Resource Limits (4 OCPUs, 24GB RAM typically)
+    deploy:
+      resources:
+        limits:
+          cpus: '3.5'   # Leave some headroom for host OS
+          memory: 20G   # Leave room for OS + buffers
+        reservations:
+          memory: 16G
+          
+    # Healthcheck is built-in to the image/Dockerfile
