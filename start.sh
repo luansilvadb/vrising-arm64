@@ -5,6 +5,20 @@
 echo "--- V Rising ARM64 Server Startup ---"
 echo "--- $(date) ---"
 
+# Default server configuration (fallback if not set via environment)
+SERVER_NAME="${SERVER_NAME:-"V Rising Server"}"
+SAVE_NAME="${SAVE_NAME:-"world1"}"
+
+echo "--- Server Configuration ---"
+echo "SERVER_NAME: $SERVER_NAME"
+echo "SAVE_NAME: $SAVE_NAME"
+
+# Box64 optimization for Wine compatibility
+export BOX64_DYNAREC_SAFEFLAGS=1
+export BOX64_DYNAREC_STRONGMEM=2
+export BOX64_LOG=1
+export BOX64_MAXCPU=64
+
 # Ensure directories exist
 mkdir -p /data/server /data/save-data /data/wine-prefix
 
@@ -84,6 +98,7 @@ echo "--- Download verified successfully ---"
 echo "--- Starting Xvfb ---"
 Xvfb :0 -screen 0 1024x768x24 &
 export DISPLAY=:0
+sleep 1
 
 echo "--- Launching V Rising Server ---"
 cd /data/server
@@ -104,22 +119,40 @@ echo "--- Wine prefix info ---"
 echo "WINEPREFIX=$WINEPREFIX"
 echo "WINEARCH=$WINEARCH"
 
-# Initialize Wine prefix if needed
-echo "--- Initializing Wine prefix (if needed) ---"
-# Use wrapper script which handles box64 invocation
-wineboot --init 2>&1 || echo "Wineboot init returned: $?"
+# Copy pre-initialized Wine prefix if local one does not exist
+if [ ! -d "$WINEPREFIX/drive_c" ]; then
+    echo "--- Copying pre-initialized Wine prefix ---"
+    cp -r /root/.wine/* "$WINEPREFIX/" 2>/dev/null || true
+fi
+
+# Initialize Wine prefix with retry logic
+echo "--- Initializing Wine prefix ---"
+for attempt in 1 2 3; do
+    echo "--- Wine initialization attempt $attempt ---"
+    wineboot --init 2>&1
+    WINEBOOT_EXIT=$?
+    if [ $WINEBOOT_EXIT -eq 0 ]; then
+        echo "--- Wineboot succeeded ---"
+        break
+    fi
+    echo "--- Wineboot attempt $attempt returned: $WINEBOOT_EXIT ---"
+    sleep 2
+done
 
 # Wait for wineserver to be ready
-sleep 2
+echo "--- Waiting for wineserver ---"
+wineserver --wait 2>&1 || true
 
 # Launch via wine64 wrapper (which uses box64)
 echo "--- Executing VRisingServer.exe via wine64 ---"
+echo "--- Command: wine64 ./VRisingServer.exe -persistentDataPath Z:\\data\\save-data -serverName $SERVER_NAME -saveName $SAVE_NAME ---"
+
 wine64 ./VRisingServer.exe \
     -persistentDataPath "Z:\\data\\save-data" \
     -serverName "$SERVER_NAME" \
     -saveName "$SAVE_NAME" \
     -logFile "Z:\\data\\server.log" \
-    $EXTRA_ARGS
+    ${EXTRA_ARGS:-}
 
 EXIT_CODE=$?
 echo "--- VRisingServer.exe exited with code: $EXIT_CODE ---"

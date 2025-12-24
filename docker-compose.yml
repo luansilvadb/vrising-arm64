@@ -12,9 +12,17 @@ services:
     environment:
       - SERVER_NAME=MyVServer
       - SAVE_NAME=world1
+      # Box64 optimization for Wine compatibility
+      - BOX64_DYNAREC_SAFEFLAGS=1
+      - BOX64_DYNAREC_STRONGMEM=2
+      - BOX64_LOG=1
+      - BOX64_MAXCPU=64
+      # Extra command line arguments for VRisingServer.exe (optional)
+      - EXTRA_ARGS=
     volumes:
       - ./server-data:/data
-    # Increase shared memory size just in case, though usually fine.
+    # Increase shared memory size for Wine/Box64
     shm_size: '2gb'
     tty: true
     stdin_open: true
+

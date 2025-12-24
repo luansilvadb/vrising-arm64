@@ -4,6 +4,12 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV STEAMCMD_DIR="/usr/games/steamcmd"
 ENV PATH="$PATH:$STEAMCMD_DIR:/opt/wine/bin"
 
+# Box64 optimization for Wine compatibility
+ENV BOX64_DYNAREC_SAFEFLAGS=1
+ENV BOX64_DYNAREC_STRONGMEM=2
+ENV BOX64_LOG=1
+ENV BOX64_MAXCPU=64
+
 # Enable armhf architecture (for Box86/SteamCMD)
 RUN dpkg --add-architecture armhf \
     && apt-get update \
@@ -93,6 +99,19 @@ RUN mkdir -p /usr/local/bin \
     && echo '#!/bin/bash' > /usr/local/bin/wineboot \
     && echo 'exec box64 /opt/wine/bin/wineboot "$@"' >> /usr/local/bin/wineboot \
     && chmod +x /usr/local/bin/wineboot
+
+# Pre-initialize Wine prefix during build (prevents kernel32.dll errors)
+# Using Xvfb to provide a virtual display
+RUN mkdir -p /root/.wine /tmp/.X11-unix \
+    && export WINEPREFIX=/root/.wine \
+    && export WINEARCH=win64 \
+    && export WINEDEBUG=-all \
+    && Xvfb :99 -screen 0 1024x768x24 & \
+    && sleep 1 \
+    && export DISPLAY=:99 \
+    && (box64 /opt/wine/bin/wineboot --init || true) \
+    && (box64 /opt/wine/bin/wineserver --wait || true) \
+    && pkill Xvfb || true
 
 # Install SteamCMD (Linux x86 32-bit, runs via box86)
 RUN mkdir -p $STEAMCMD_DIR \
