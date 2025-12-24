@@ -71,22 +71,46 @@ install_or_update_server() {
     
     # Usar SteamCMD para baixar/atualizar o servidor
     log_info "Executando SteamCMD (isso pode demorar na primeira vez)..."
+    log_info "Baixando V Rising Dedicated Server (AppID: ${VRISING_APP_ID})..."
     
     cd "${STEAMCMD_DIR}"
     
-    # SteamCMD via Box86 (é um binário x86)
-    box86 ./steamcmd.sh \
+    # Configurar variáveis de ambiente para Box86
+    export BOX86_LOG=0
+    export BOX86_NOBANNER=1
+    
+    # Executar SteamCMD via Box86 diretamente no binário
+    # O binário está em linux32/steamcmd (não o script .sh)
+    if box86 "${STEAMCMD_DIR}/linux32/steamcmd" \
         +@sSteamCmdForcePlatformType windows \
         +force_install_dir "${SERVER_DIR}" \
         +login anonymous \
         +app_update ${VRISING_APP_ID} validate \
-        +quit
-    
-    if [ $? -eq 0 ]; then
+        +quit; then
         log_success "Servidor V Rising instalado/atualizado com sucesso!"
     else
-        log_error "Falha ao instalar/atualizar o servidor!"
-        exit 1
+        log_warning "SteamCMD retornou com warnings (isso pode ser normal na primeira execução)"
+        # Verificar se o servidor foi baixado mesmo assim
+        if [ -f "${SERVER_DIR}/VRisingServer.exe" ]; then
+            log_success "Servidor V Rising encontrado após instalação!"
+        else
+            log_error "Falha ao instalar o servidor V Rising!"
+            log_info "Tentando novamente..."
+            # Segunda tentativa
+            box86 "${STEAMCMD_DIR}/linux32/steamcmd" \
+                +@sSteamCmdForcePlatformType windows \
+                +force_install_dir "${SERVER_DIR}" \
+                +login anonymous \
+                +app_update ${VRISING_APP_ID} validate \
+                +quit || true
+            
+            if [ -f "${SERVER_DIR}/VRisingServer.exe" ]; then
+                log_success "Servidor V Rising instalado na segunda tentativa!"
+            else
+                log_error "Não foi possível instalar o servidor."
+                exit 1
+            fi
+        fi
     fi
 }
 
@@ -101,9 +125,11 @@ configure_server() {
     # ==========================================================================
     HOST_SETTINGS_FILE="${SETTINGS_DIR}/ServerHostSettings.json"
     
-    log_info "Criando ServerHostSettings.json..."
-    
-    cat > "${HOST_SETTINGS_FILE}" << EOF
+    # Só criar se não existir (para permitir configurações customizadas)
+    if [ ! -f "${HOST_SETTINGS_FILE}" ]; then
+        log_info "Criando ServerHostSettings.json..."
+        
+        cat > "${HOST_SETTINGS_FILE}" << EOF
 {
   "Name": "${SERVER_NAME}",
   "Description": "V Rising Dedicated Server running on ARM64 Docker",
@@ -133,17 +159,20 @@ configure_server() {
   }
 }
 EOF
-    
-    log_success "ServerHostSettings.json criado!"
+        log_success "ServerHostSettings.json criado!"
+    else
+        log_info "ServerHostSettings.json já existe, mantendo configuração atual."
+    fi
     
     # ==========================================================================
     # ServerGameSettings.json
     # ==========================================================================
     GAME_SETTINGS_FILE="${SETTINGS_DIR}/ServerGameSettings.json"
     
-    log_info "Criando ServerGameSettings.json..."
-    
-    cat > "${GAME_SETTINGS_FILE}" << EOF
+    if [ ! -f "${GAME_SETTINGS_FILE}" ]; then
+        log_info "Criando ServerGameSettings.json..."
+        
+        cat > "${GAME_SETTINGS_FILE}" << EOF
 {
   "GameModeType": "${GAME_MODE_TYPE}",
   "CastleDamageMode": "TimeRestricted",
@@ -204,33 +233,53 @@ EOF
   "StarterResourcesId": 0
 }
 EOF
-    
-    log_success "ServerGameSettings.json criado!"
+        log_success "ServerGameSettings.json criado!"
+    else
+        log_info "ServerGameSettings.json já existe, mantendo configuração atual."
+    fi
 }
 
 start_server() {
+    log_info "=============================================="
     log_info "Iniciando servidor V Rising..."
+    log_info "=============================================="
     log_info "Server Name: ${SERVER_NAME}"
     log_info "World Name: ${WORLD_NAME}"
     log_info "Game Port: ${GAME_PORT}"
     log_info "Query Port: ${QUERY_PORT}"
     log_info "Max Users: ${MAX_USERS}"
     log_info "Game Mode: ${GAME_MODE_TYPE}"
+    log_info "=============================================="
     
     cd "${SERVER_DIR}"
     
     # Iniciar display virtual
+    log_info "Iniciando display virtual (Xvfb)..."
     Xvfb :0 -screen 0 1024x768x16 &
+    XVFB_PID=$!
     export DISPLAY=:0
     
     # Aguardar Xvfb iniciar
-    sleep 2
+    sleep 3
+    
+    if ! kill -0 ${XVFB_PID} 2>/dev/null; then
+        log_error "Falha ao iniciar Xvfb!"
+        exit 1
+    fi
+    log_success "Display virtual iniciado!"
+    
+    # Configurar variáveis de ambiente para Box64/Wine
+    export BOX64_LOG=0
+    export BOX64_NOBANNER=1
+    export WINEDEBUG=-all
+    export WINEPREFIX=/root/.wine
+    export WINEARCH=win64
     
     log_info "Executando VRisingServer.exe via Wine/Box64..."
+    log_info "O servidor pode demorar alguns minutos para iniciar na primeira vez..."
     
     # Executar o servidor via Box64 + Wine
-    # Box64 automaticamente usa Wine para executar o .exe
-    box64 wine64 VRisingServer.exe \
+    box64 /opt/wine/bin/wine64 "${SERVER_DIR}/VRisingServer.exe" \
         -persistentDataPath "${SAVES_DIR}" \
         -serverName "${SERVER_NAME}" \
         -saveName "${WORLD_NAME}" \
@@ -245,10 +294,10 @@ shutdown_server() {
     log_info "Finalizando servidor V Rising..."
     
     # Matar processos Wine
-    wineserver -k || true
+    box64 /opt/wine/bin/wineserver -k 2>/dev/null || true
     
     # Matar Xvfb
-    pkill Xvfb || true
+    pkill Xvfb 2>/dev/null || true
     
     log_success "Servidor finalizado com sucesso!"
     exit 0
@@ -269,7 +318,10 @@ log_info "Saves Directory: ${SAVES_DIR}"
 log_info "=============================================="
 
 # Configurar timezone
-ln -sf /usr/share/zoneinfo/${TZ} /etc/localtime
+ln -sf /usr/share/zoneinfo/${TZ} /etc/localtime 2>/dev/null || true
+
+# Criar diretórios se não existirem
+mkdir -p "${SERVER_DIR}" "${SAVES_DIR}" /data/logs
 
 # Instalar/atualizar servidor
 install_or_update_server
