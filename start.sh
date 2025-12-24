@@ -1,7 +1,9 @@
 #!/bin/bash
-set -e
+# Removed set -e to allow debugging and show actual errors
+# set -e
 
 echo "--- V Rising ARM64 Server Startup ---"
+echo "--- $(date) ---"
 
 # Ensure directories exist
 mkdir -p /data/server /data/save-data /data/wine-prefix
@@ -26,15 +28,36 @@ export DISPLAY=:0
 echo "--- Launching V Rising Server ---"
 cd /data/server
 
-# Check for settings match
-# (Optional: Scripting to copy env vars to JSON settings could go here)
+# Verify VRisingServer.exe exists
+if [ ! -f "./VRisingServer.exe" ]; then
+    echo "ERROR: VRisingServer.exe not found in /data/server!"
+    echo "Contents of /data/server:"
+    ls -la /data/server/
+    echo "--- Sleeping to prevent restart loop ---"
+    sleep infinity
+fi
+
+echo "--- Files in server directory ---"
+ls -la ./VRisingServer.exe
+
+echo "--- Wine prefix info ---"
+echo "WINEPREFIX=$WINEPREFIX"
+echo "WINEARCH=$WINEARCH"
+
+# Initialize Wine prefix if needed
+echo "--- Initializing Wine prefix (if needed) ---"
+box64 /opt/wine/bin/wineboot --init 2>&1 || echo "Wineboot init returned: $?"
 
 # Launch via Box64 -> Wine64
-# We use 'wine64' which should be in the path, wrapping box64 automatically if configured, 
-# or we invoke 'box64 wine64'.
-box64 wine64 ./VRisingServer.exe \
+echo "--- Executing VRisingServer.exe via box64 wine64 ---"
+box64 /opt/wine/bin/wine64 ./VRisingServer.exe \
     -persistentDataPath "Z:\\data\\save-data" \
     -serverName "$SERVER_NAME" \
     -saveName "$SAVE_NAME" \
     -logFile "Z:\\data\\server.log" \
     $EXTRA_ARGS
+
+EXIT_CODE=$?
+echo "--- VRisingServer.exe exited with code: $EXIT_CODE ---"
+echo "--- Server stopped. Sleeping to prevent restart loop ---"
+sleep infinity
