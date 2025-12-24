@@ -24,7 +24,8 @@ RUN apt update -y && \
     git \
     cmake \
     build-essential \
-    python3
+    python3 \
+    sudo
 
 # Add Box86 and Box64 repositories
 RUN wget https://ryanfortner.github.io/box64-debs/box64.list -O /etc/apt/sources.list.d/box64.list && \
@@ -39,33 +40,28 @@ RUN dpkg --add-architecture armhf && \
 # Install Box64 and Box86
 RUN apt install -y box64-generic-arm box86-generic-arm:armhf || \
     apt install -y box64-rpi4arm64 box86-rpi4arm64:armhf || \
-    apt install -y box64 box86:armhf
+    apt install -y box64 box86:armhf || \
+    (echo "Trying alternative box install" && apt install -y box64 box86)
 
 # Install armhf libraries needed by Box86
 RUN apt install -y \
     libc6:armhf \
     libstdc++6:armhf \
-    libasound2:armhf \
-    libglib2.0-0:armhf \
-    libgphoto2-6:armhf \
-    libgphoto2-port12:armhf \
-    libgstreamer-plugins-base1.0-0:armhf \
-    libgstreamer1.0-0:armhf \
-    libldap-2.5-0:armhf \
-    libopenal1:armhf \
-    libpcap0.8:armhf \
-    libpulse0:armhf \
-    libsane1:armhf \
-    libudev1:armhf \
-    libusb-1.0-0:armhf \
-    libvkd3d1:armhf \
-    libx11-6:armhf \
-    libxext6:armhf \
-    libfreetype6:armhf \
-    libfontconfig1:armhf \
-    libjpeg62:armhf || true
+    libncurses5:armhf \
+    libncurses6:armhf \
+    libtinfo6:armhf || true
 
-# Download and setup Wine for ARM64 (using box64/box86)
+# Setup Steam user with proper permissions
+RUN useradd -m -s /bin/bash steam && \
+    echo "steam ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
+    mkdir -p /home/steam/.steam && \
+    mkdir -p /home/steam/.wine && \
+    mkdir -p /mnt/vrising/server && \
+    mkdir -p /mnt/vrising/persistentdata && \
+    chown -R steam:steam /home/steam && \
+    chown -R steam:steam /mnt/vrising
+
+# Download and setup Wine for ARM64 (using box64)
 RUN mkdir -p /opt/wine && \
     cd /opt/wine && \
     wget -q https://github.com/Kron4ek/Wine-Builds/releases/download/9.0/wine-9.0-amd64.tar.xz && \
@@ -77,21 +73,23 @@ RUN mkdir -p /opt/wine && \
     ln -sf /opt/wine/wine/bin/wineserver /usr/local/bin/wineserver && \
     ln -sf /opt/wine/wine/bin/winecfg /usr/local/bin/winecfg
 
-# Setup Steam user
-RUN useradd -m steam && \
-    mkdir -p /home/steam/.steam && \
-    chown -R steam:steam /home/steam
-
 # Download SteamCMD (x86 Linux binary, will run via box86)
+USER steam
+WORKDIR /home/steam
+
 RUN mkdir -p /home/steam/steamcmd && \
     cd /home/steam/steamcmd && \
     wget -q https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz && \
     tar -xzf steamcmd_linux.tar.gz && \
     rm steamcmd_linux.tar.gz && \
-    chown -R steam:steam /home/steam/steamcmd
+    chmod +x /home/steam/steamcmd/steamcmd.sh && \
+    chmod +x /home/steam/steamcmd/linux32/steamcmd
 
-# Create wrapper script for steamcmd using box86
-RUN echo '#!/bin/bash\nexec box86 /home/steam/steamcmd/steamcmd.sh "$@"' > /usr/local/bin/steamcmd && \
+# Switch back to root for final setup
+USER root
+
+# Create wrapper script for steamcmd using box86 (pointing to the actual binary)
+RUN echo '#!/bin/bash\nexec box86 /home/steam/steamcmd/linux32/steamcmd "$@"' > /usr/local/bin/steamcmd && \
     chmod +x /usr/local/bin/steamcmd
 
 # Add Wine environment variables
@@ -101,6 +99,8 @@ ENV BOX64_LOG=0
 ENV BOX86_LOG=0
 ENV BOX64_LD_LIBRARY_PATH=/opt/wine/wine/lib/wine/x86_64-unix:/lib/x86_64-linux-gnu
 ENV BOX86_LD_LIBRARY_PATH=/opt/wine/wine/lib/wine/i386-unix:/lib/i386-linux-gnu
+ENV HOME=/home/steam
+ENV USER=steam
 
 # Cleanup
 RUN rm -rf /var/lib/apt/lists/* && \
@@ -109,4 +109,7 @@ RUN rm -rf /var/lib/apt/lists/* && \
 
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
+
+# Run as steam user
+USER steam
 CMD ["/start.sh"]

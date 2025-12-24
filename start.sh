@@ -36,12 +36,7 @@ trap 'term_handler' SIGTERM
 if [ -z "$LOGDAYS" ]; then
 	LOGDAYS=30
 fi
-if [[ -n $UID ]]; then
-	usermod -u "$UID" docker 2>&1
-fi
-if [[ -n $GID ]]; then
-	groupmod -g "$GID" docker 2>&1
-fi
+# UID/GID handling removed - running as 'steam' user now
 if [ -z "$SERVERNAME" ]; then
 	SERVERNAME="trueosiris-V"
 fi
@@ -64,13 +59,12 @@ if [ -n "$BRANCH" ]; then
 fi
 cleanup_logs
 
-mkdir -p /root/.steam 2>/dev/null
-chmod -R 777 /root/.steam 2>/dev/null
+mkdir -p /home/steam/.steam 2>/dev/null
 echo " "
 echo "Updating V-Rising Dedicated Server files..."
 echo " "
-# Using box86 to run steamcmd on ARM64
-box86 /home/steam/steamcmd/steamcmd.sh +@sSteamCmdForcePlatformType windows +force_install_dir "$s" +login anonymous +app_update 1829350 $beta_arg validate +quit
+# Using box86 to run steamcmd binary directly on ARM64
+box86 /home/steam/steamcmd/linux32/steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir "$s" +login anonymous +app_update 1829350 $beta_arg validate +quit
 printf "steam_appid: "
 cat "$s/steam_appid.txt"
 
