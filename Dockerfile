@@ -25,7 +25,7 @@ RUN mkdir build && cd build && \
     -DARM_DYNAREC=ON \
     -DCMAKE_BUILD_TYPE=Release \
     -DNOGIT=1 && \
-    make -j$(nproc) && \
+    make -j2 && \
     make install DESTDIR=/tmp/install
 
 # --- Build Box86 (For SteamCMD - x86) ---
@@ -38,7 +38,7 @@ RUN mkdir build && cd build && \
     -DARM_DYNAREC=ON \
     -DCMAKE_BUILD_TYPE=Release \
     -DNOGIT=1 && \
-    make -j$(nproc) && \
+    make -j2 && \
     make install DESTDIR=/tmp/install
 
 # ==========================================
