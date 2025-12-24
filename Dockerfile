@@ -51,6 +51,28 @@ RUN apt install -y \
     libncurses6:armhf \
     libtinfo6:armhf || true
 
+# Install native X11 libraries needed by Box64 for Wine
+RUN apt install -y \
+    libxinerama1 \
+    libxrender1 \
+    libxcomposite1 \
+    libxi6 \
+    libxcursor1 \
+    libxrandr2 \
+    libxfixes3 \
+    libxext6 \
+    libx11-6 \
+    libcups2 \
+    libfontconfig1 \
+    libfreetype6 \
+    libosmesa6 \
+    libgl1-mesa-glx \
+    libgl1-mesa-dri \
+    mesa-utils \
+    libpulse0 \
+    libasound2 \
+    libglib2.0-0 || true
+
 # Setup Steam user with proper permissions
 RUN useradd -m -s /bin/bash steam && \
     echo "steam ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \

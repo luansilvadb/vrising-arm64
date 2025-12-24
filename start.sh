@@ -63,10 +63,27 @@ mkdir -p /home/steam/.steam 2>/dev/null
 echo " "
 echo "Updating V-Rising Dedicated Server files..."
 echo " "
+
 # Using box86 to run steamcmd binary directly on ARM64
+# First run might just self-update, so we run twice to ensure game download
+echo "Running SteamCMD (first pass - may self-update)..."
 box86 /home/steam/steamcmd/linux32/steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir "$s" +login anonymous +app_update 1829350 $beta_arg validate +quit
+
+# Check if game was downloaded, if not, run again
+if [ ! -f "$s/VRisingServer.exe" ]; then
+    echo " "
+    echo "Game not found, running SteamCMD again..."
+    box86 /home/steam/steamcmd/linux32/steamcmd +@sSteamCmdForcePlatformType windows +force_install_dir "$s" +login anonymous +app_update 1829350 $beta_arg validate +quit
+fi
+
+# Final check
+if [ ! -f "$s/VRisingServer.exe" ]; then
+    echo "ERROR: V Rising server files were not downloaded!"
+    echo "Check SteamCMD logs for errors."
+fi
+
 printf "steam_appid: "
-cat "$s/steam_appid.txt"
+cat "$s/steam_appid.txt" 2>/dev/null || echo "Not found"
 
 echo " "
 if ! grep -q -o 'avx[^ ]*' /proc/cpuinfo; then
