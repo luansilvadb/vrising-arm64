@@ -141,6 +141,8 @@ echo "--- Command: wine64 ./VRisingServer.exe -persistentDataPath Z:\\data\\save
 
 # Launch process in background to allow trap to catch signals
 wine64 ./VRisingServer.exe \
+    -batchmode \
+    -nographics \
     -persistentDataPath "Z:\\data\\save-data" \
     -serverName "$SERVER_NAME" \
     -saveName "$SAVE_NAME" \
