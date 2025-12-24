@@ -27,7 +27,8 @@ VRISING_APP_ID="${VRISING_APP_ID:-1829350}"
 export WINEPREFIX="${WINEPREFIX:-/data/wine}"
 export WINEARCH="win64"
 export WINEDEBUG="-all"
-export WINEDLLOVERRIDES="mscoree=d;mshtml=d"
+# dnsapi=b força uso de builtin para evitar erro __res_query
+export WINEDLLOVERRIDES="mscoree=d;mshtml=d;dnsapi=b"
 export DISPLAY=":0"
 
 # Box settings

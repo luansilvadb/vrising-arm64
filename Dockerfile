@@ -40,6 +40,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     WINEPREFIX="/data/wine" \
     WINEARCH="win64" \
     WINEDEBUG="-all" \
+    # Forçar dnsapi builtin para evitar __res_query crash
+    WINEDLLOVERRIDES="mscoree=d;mshtml=d;dnsapi=b" \
     # Display virtual
     DISPLAY=":0" \
     # Box settings - habilitar WOW64
@@ -64,6 +66,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     netcat-openbsd \
     procps \
     locales \
+    # Bibliotecas para resolver __res_query symbol
+    libresolv-wrapper \
+    libc6-dev \
+    # Build tools para compilar Box64 v0.3.8+
+    git \
+    cmake \
+    build-essential \
+    # Bibliotecas X11 que Wine precisa
+    libxinerama1 \
+    libxrandr2 \
+    libxcomposite1 \
+    libxi6 \
+    libxcursor1 \
     # Bibliotecas adicionais para Wine
     libfreetype6 \
     libfontconfig1 \
@@ -77,6 +92,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
     LC_ALL=en_US.UTF-8
+
+# =============================================================================
+# Atualizar Box64 para v0.3.8 (tem wrapping de __res_query)
+# =============================================================================
+RUN cd /tmp && \
+    git clone --depth 1 --branch v0.3.8 https://github.com/ptitSeb/box64.git && \
+    cd box64 && \
+    mkdir build && cd build && \
+    cmake .. -DARM_DYNAREC=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
+    make -j$(nproc) && \
+    make install && \
+    cd / && rm -rf /tmp/box64 && \
+    # Verificar versão instalada
+    box64 --version
 
 # =============================================================================
 # Instalar Wine 9.x com WOW64 (versão que funciona melhor com Box64)
