@@ -150,9 +150,10 @@ RUN mkdir -p /opt/steamcmd && \
 RUN mkdir -p /data/server /data/saves /data/logs /data/wine /scripts
 
 # =============================================================================
-# Copiar scripts
+# Copiar scripts e configurações
 # =============================================================================
 COPY scripts/entrypoint.sh /scripts/entrypoint.sh
+COPY config/ /scripts/config/
 RUN chmod +x /scripts/entrypoint.sh
 
 # =============================================================================

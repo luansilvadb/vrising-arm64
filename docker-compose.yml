@@ -36,6 +36,9 @@ services:
       # Modo de jogo
       - GAME_MODE_TYPE=${GAME_MODE_TYPE:-PvP}
 
+      # Preset de dificuldade (Difficulty_Easy, Difficulty_Normal, Difficulty_Brutal)
+      - GAME_DIFFICULTY_PRESET=${GAME_DIFFICULTY_PRESET:-Difficulty_Brutal}
+
       # FPS do servidor (30 = menos CPU, 60 = mais fluido)
       - SERVER_FPS=${SERVER_FPS:-60}
 

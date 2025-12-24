@@ -100,6 +100,7 @@ docker run -d \
 | `LIST_ON_MASTER_SERVER` | `false` | Listar no Steam |
 | `LIST_ON_EOS` | `false` | Listar no EOS |
 | `GAME_MODE_TYPE` | `PvP` | Modo: `PvP` ou `PvE` |
+| `GAME_DIFFICULTY_PRESET` | `Difficulty_Brutal` | Preset de dificuldade |
 | `TZ` | `America/Sao_Paulo` | Timezone |
 
 ## 📁 Estrutura de Diretórios
@@ -116,6 +117,27 @@ docker run -d \
 
 ## 🔧 Configurações Avançadas
 
+### 💀 Modo Brutal (Dificuldade)
+
+O servidor vem configurado com **Difficulty_Brutal** por padrão. Você pode alterar via variável de ambiente:
+
+| Preset | Descrição |
+|--------|----------|
+| `Difficulty_Easy` | Inimigos mais fracos, ideal para iniciantes |
+| `Difficulty_Normal` | Balanceamento padrão do jogo |
+| `Difficulty_Brutal` | Modo hardcore - desafiador! |
+
+#### O que muda no Brutal?
+
+| Modificador | Valor | Efeito |
+|-------------|-------|--------|
+| **Inimigos (todos)** | | |
+| `PowerModifier` | 1.4 | +40% de dano |
+| **Bosses V Blood** | | |
+| `MaxHealthModifier` | 1.25 | +25% de vida |
+| `PowerModifier` | 1.7 | +70% de dano |
+| `LevelIncrease` | 3 | +3 níveis acima do normal |
+
 ### ServerHostSettings.json
 
 Para configurações avançadas do host, edite `/data/saves/Settings/ServerHostSettings.json`:
@@ -128,6 +150,7 @@ Para configurações avançadas do host, edite `/data/saves/Settings/ServerHostS
   "QueryPort": 9877,
   "MaxConnectedUsers": 40,
   "Password": "minhasenha",
+  "GameDifficultyPreset": "Difficulty_Brutal",
   "ListOnMasterServer": true,
   "Rcon": {
     "Enabled": true,
@@ -151,6 +174,28 @@ Para configurações de gameplay, edite `/data/saves/Settings/ServerGameSettings
   "CraftRateModifier": 1.0
 }
 ```
+
+### 📝 Manutenção via EasyPanel (File Mount)
+
+Para editar configurações diretamente no EasyPanel:
+
+1. **Adicionar File Mount**:
+   - No EasyPanel, vá em **Mounts** → **Add File Mount**
+   - Caminho: `/data/saves/Settings/ServerGameSettings.json`
+   - Conteúdo: Copie de `config/ServerGameSettings.json` deste repositório
+
+2. **Editar configurações**:
+   - Clique em **Edit** no File Mount
+   - Faça suas alterações
+   - Clique em **Save**
+   - **Reinicie o container** para aplicar
+
+3. **Fazer backup**:
+   - Copie o conteúdo do File Mount
+   - Cole em `config/ServerGameSettings.json` no repositório
+   - Commit e push para o GitHub
+
+> 💡 **Dica**: O arquivo `config/` contém templates prontos para uso!
 
 ## 🌐 Conectando ao Servidor
 
@@ -247,6 +292,10 @@ vrising-arm64/
 ├── docker-compose.yml   # Compose para EasyPanel
 ├── .env.example         # Variáveis de exemplo
 ├── .gitignore           # Arquivos ignorados
+├── config/              # 📁 Templates para EasyPanel File Mount
+│   ├── ServerGameSettings.json   # Configurações de gameplay
+│   ├── ServerHostSettings.json   # Configurações do host (backup)
+│   └── README.md                 # Documentação dos configs
 ├── scripts/
 │   └── entrypoint.sh    # Script de inicialização
 └── README.md            # Esta documentação

@@ -179,102 +179,78 @@ configure_server() {
     log_info "Configurando servidor..."
     mkdir -p "${SETTINGS_DIR}"
     
-    # Sempre recria ServerHostSettings.json para aplicar mudanças de variáveis
+    # Diretório com templates de configuração
+    CONFIG_TEMPLATES="/scripts/config"
+    
+    # =========================================================================
+    # ServerHostSettings.json - Sempre atualiza com variáveis de ambiente
+    # =========================================================================
     log_info "Atualizando ServerHostSettings.json..."
-    cat > "${SETTINGS_DIR}/ServerHostSettings.json" << EOF
+    
+    # Usar template como base e substituir valores com jq
+    if [ -f "${CONFIG_TEMPLATES}/ServerHostSettings.json" ]; then
+        jq --arg name "${SERVER_NAME}" \
+           --arg desc "${SERVER_DESCRIPTION}" \
+           --argjson port "${GAME_PORT}" \
+           --argjson qport "${QUERY_PORT}" \
+           --argjson maxusers "${MAX_USERS}" \
+           --argjson fps "${SERVER_FPS:-60}" \
+           --arg save "${WORLD_NAME}" \
+           --arg pass "${PASSWORD}" \
+           --argjson master "${LIST_ON_MASTER_SERVER}" \
+           --argjson eos "${LIST_ON_EOS}" \
+           --arg diff "${GAME_DIFFICULTY_PRESET:-Difficulty_Brutal}" \
+           --argjson rcon_enabled "${RCON_ENABLED:-true}" \
+           --argjson rcon_port "${RCON_PORT:-25575}" \
+           --arg rcon_pass "${RCON_PASSWORD:-}" \
+           '.Name = $name |
+            .Description = $desc |
+            .Port = $port |
+            .QueryPort = $qport |
+            .MaxConnectedUsers = $maxusers |
+            .ServerFps = $fps |
+            .SaveName = $save |
+            .Password = $pass |
+            .ListOnMasterServer = $master |
+            .ListOnEOS = $eos |
+            .GameDifficultyPreset = $diff |
+            .Rcon.Enabled = $rcon_enabled |
+            .Rcon.Port = $rcon_port |
+            .Rcon.Password = $rcon_pass' \
+           "${CONFIG_TEMPLATES}/ServerHostSettings.json" > "${SETTINGS_DIR}/ServerHostSettings.json"
+        log_success "ServerHostSettings.json atualizado (template + variáveis)!"
+    else
+        log_warning "Template ServerHostSettings.json não encontrado, criando básico..."
+        cat > "${SETTINGS_DIR}/ServerHostSettings.json" << EOF
 {
   "Name": "${SERVER_NAME}",
-  "Description": "${SERVER_DESCRIPTION:-Servidor dedicado brasileiro - Bem-vindo ao Velion!}",
+  "Description": "${SERVER_DESCRIPTION:-Servidor dedicado brasileiro}",
   "Port": ${GAME_PORT},
   "QueryPort": ${QUERY_PORT},
   "MaxConnectedUsers": ${MAX_USERS},
-  "MaxConnectedAdmins": 4,
-  "ServerFps": ${SERVER_FPS:-60},
   "SaveName": "${WORLD_NAME}",
   "Password": "${PASSWORD}",
-  "Secure": true,
   "ListOnMasterServer": ${LIST_ON_MASTER_SERVER},
   "ListOnEOS": ${LIST_ON_EOS},
-  "AutoSaveCount": 25,
-  "AutoSaveInterval": 120,
-  "CompressSaveFiles": true,
-  "GameSettingsPreset": "",
-  "AdminOnlyDebugEvents": true,
-  "DisableDebugEvents": false,
-  "API": { "Enabled": false },
+  "GameDifficultyPreset": "${GAME_DIFFICULTY_PRESET:-Difficulty_Brutal}",
   "Rcon": { "Enabled": ${RCON_ENABLED:-true}, "Port": ${RCON_PORT:-25575}, "Password": "${RCON_PASSWORD:-}" }
 }
 EOF
-    log_success "ServerHostSettings.json atualizado!"
+    fi
     
-    # ServerGameSettings.json - Só cria se não existir (gerenciado via EasyPanel File Mount)
+    # =========================================================================
+    # ServerGameSettings.json - Só copia se não existir (File Mount tem prioridade)
+    # =========================================================================
     if [ -f "${SETTINGS_DIR}/ServerGameSettings.json" ]; then
-        log_info "ServerGameSettings.json encontrado - usando configuração existente (File Mount)"
+        log_info "ServerGameSettings.json existente - usando configuração atual (File Mount)"
     else
-        log_info "Criando ServerGameSettings.json padrão..."
-        cat > "${SETTINGS_DIR}/ServerGameSettings.json" << EOF
-{
-  "GameModeType": "${GAME_MODE_TYPE}",
-  "CastleDamageMode": "TimeRestricted",
-  "SiegeWeaponHealth": "Normal",
-  "PlayerDamageMode": "Always",
-  "CastleHeartDamageMode": "CanBeDestroyedByPlayers",
-  "PvPProtectionMode": "Medium",
-  "DeathContainerPermission": "Anyone",
-  "RelicSpawnType": "Unique",
-  "CanLootEnemyContainers": true,
-  "BloodBoundEquipment": true,
-  "TeleportBoundItems": false,
-  "BatBoundItems": false,
-  "AllowGlobalChat": true,
-  "AllWaypointsUnlocked": false,
-  "FreeCastleClaim": false,
-  "FreeCastleDestroy": false,
-  "InactivityKillEnabled": true,
-  "InactivityKillTimeMin": 3600,
-  "InactivityKillTimeMax": 604800,
-  "InactivityKillSafeTimeAddition": 172800,
-  "InactivityKillTimerMaxItemLevel": 84,
-  "DisableDisconnectedDeadEnabled": true,
-  "DisableDisconnectedDeadTimer": 60,
-  "InventoryStacksModifier": 1.0,
-  "DropTableModifier_General": 1.0,
-  "DropTableModifier_Missions": 1.0,
-  "MaterialYieldModifier_Global": 3.0,
-  "BloodEssenceYieldModifier": 3.0,
-  "JournalVBloodSourceUnitMaxDistance": 25.0,
-  "PvPVampireRespawnModifier": 1.0,
-  "CastleMinimumDistanceInFloors": 2,
-  "ClanSize": 4,
-  "BloodDrainModifier": 1.0,
-  "DurabilityDrainModifier": 1.0,
-  "GarlicAreaStrengthModifier": 1.0,
-  "HolyAreaStrengthModifier": 1.0,
-  "SilverStrengthModifier": 1.0,
-  "SunDamageModifier": 1.0,
-  "CastleDecayRateModifier": 1.0,
-  "CastleBloodEssenceDrainModifier": 1.0,
-  "CastleSiegeTimer": 420.0,
-  "CastleUnderAttackTimer": 60.0,
-  "AnnounceSiegeWeaponSpawn": true,
-  "ShowSiegeWeaponMapIcon": false,
-  "BuildCostModifier": 1.0,
-  "RecipeCostModifier": 1.0,
-  "CraftRateModifier": 1.0,
-  "ResearchCostModifier": 1.0,
-  "RefinementCostModifier": 1.0,
-  "RefinementRateModifier": 1.0,
-  "ResearchTimeModifier": 1.0,
-  "DismantleResourceModifier": 0.75,
-  "ServantConvertRateModifier": 1.0,
-  "RepairCostModifier": 1.0,
-  "Death_DurabilityFactorLoss": 0.25,
-  "Death_DurabilityLossFactorAsResources": 1.0,
-  "StarterEquipmentId": 0,
-  "StarterResourcesId": 0
-}
-EOF
-        log_success "ServerGameSettings.json padrão criado!"
+        if [ -f "${CONFIG_TEMPLATES}/ServerGameSettings.json" ]; then
+            log_info "Copiando ServerGameSettings.json do template..."
+            cp "${CONFIG_TEMPLATES}/ServerGameSettings.json" "${SETTINGS_DIR}/ServerGameSettings.json"
+            log_success "ServerGameSettings.json copiado do template!"
+        else
+            log_warning "Template ServerGameSettings.json não encontrado!"
+        fi
     fi
 }
 
@@ -285,6 +261,7 @@ start_server() {
     log_info "Server Name: ${SERVER_NAME}"
     log_info "Game Port: ${GAME_PORT} | Query Port: ${QUERY_PORT}"
     log_info "Max Users: ${MAX_USERS} | Game Mode: ${GAME_MODE_TYPE}"
+    log_info "Difficulty: ${GAME_DIFFICULTY_PRESET:-Difficulty_Brutal} 💀"
     log_info "=============================================="
     
     cd "${SERVER_DIR}"
