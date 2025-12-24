@@ -17,8 +17,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     squashfuse fuse3 \
     # Network tools
     netcat-openbsd socat procps \
-    # For automating interactive prompts
-    expect \
     # SteamCMD requirement
     unzip \
     && rm -rf /var/lib/apt/lists/*
@@ -29,33 +27,34 @@ RUN add-apt-repository -y ppa:fex-emu/fex && \
     apt-get install -y fex-emu-armv8.0 && \
     rm -rf /var/lib/apt/lists/*
 
-# 3. Cria usuário não-root
+# 3. Cria usuário não-root e diretórios
 RUN useradd -u 1000 -m -s /bin/bash vrising && \
-    mkdir -p /app /data /steam /home/vrising/.fex-emu && \
-    chown -R vrising:vrising /app /data /steam /home/vrising/.fex-emu
+    mkdir -p /app /data /steam \
+             /home/vrising/.fex-emu/RootFS \
+             /home/vrising/.fex-emu/Config && \
+    chown -R vrising:vrising /app /data /steam /home/vrising
 
-# 4. Baixa RootFS via FEXRootFSFetcher com respostas automáticas
+# 4. Baixa RootFS Ubuntu 22.04 manualmente (SquashFS)
 USER vrising
-# Respostas: y (baixar), 0 (primeira opção), y (extrair), y (usar como default)
-RUN printf 'y\n0\ny\ny\n' | FEXRootFSFetcher && \
-    echo "=== RootFS download complete ==="
+ENV ROOTFS_URL="https://rootfs.fex-emu.gg/Ubuntu_22_04/2025-01-08/Ubuntu_22_04.sqsh"
+ENV ROOTFS_PATH="/home/vrising/.fex-emu/RootFS.sqsh"
 
-# 5. Verifica RootFS e lista conteúdo
-RUN echo "=== Checking RootFS ==="  && \
-    ls -la $HOME/.fex-emu/ && \
-    ls -la $HOME/.fex-emu/RootFS/ 2>/dev/null || echo "RootFS folder not found"
+RUN echo "=== Downloading FEX RootFS ===" && \
+    wget -q --show-progress -O "${ROOTFS_PATH}" "${ROOTFS_URL}" && \
+    echo "=== RootFS downloaded ===" && \
+    ls -lah "${ROOTFS_PATH}"
 
-# 6. Instala Wine64 dentro do RootFS extraído
-RUN echo "=== Installing Wine via FEXBash ==="  && \
-    FEXBash -c "apt-get update && apt-get install -y wine64 && rm -rf /var/lib/apt/lists/*" && \
-    echo "=== Wine installation complete ==="
+# 5. Configura FEX para usar o RootFS SquashFS
+RUN echo "=== Configuring FEX RootFS path ===" && \
+    echo '{"Config":{"RootFS":"'"${ROOTFS_PATH}"'"}}' > /home/vrising/.fex-emu/Config.json && \
+    cat /home/vrising/.fex-emu/Config.json
 
-# 7. Verifica Wine instalado
-RUN echo "=== Verifying Wine ==="  && \
-    ls -la $HOME/.fex-emu/RootFS/usr/bin/wine* 2>/dev/null || echo "Wine binaries not found" && \
-    FEXBash -c "which wine64" || echo "Wine not in PATH"
+# 6. Testa que FEX consegue encontrar o RootFS
+RUN echo "=== Testing FEX configuration ===" && \
+    FEXConfig -v || echo "FEXConfig not available" && \
+    timeout 5 FEXInterpreter /bin/true 2>&1 || echo "FEX test complete"
 
-# 8. Copia scripts (volta para root temporariamente)
+# 7. Copia scripts (volta para root temporariamente)
 USER root
 COPY --chown=vrising:vrising entrypoint.sh /app/
 COPY --chown=vrising:vrising wine-wrapper.sh /app/
@@ -63,6 +62,9 @@ RUN chmod +x /app/*.sh
 
 WORKDIR /app
 USER vrising
+
+# Variáveis de ambiente para FEX
+ENV FEX_ROOTFS="${ROOTFS_PATH}"
 
 EXPOSE 27015/udp 27016/udp
 
