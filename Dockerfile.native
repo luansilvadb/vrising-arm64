@@ -5,7 +5,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # 1. Dependências base
 RUN apt-get update && apt-get install -y \
-    ca-certificates curl wget lib32gcc-s1 \
+    ca-certificates curl wget \
     xvfb squashfs-tools \
     && rm -rf /var/lib/apt/lists/*
 
