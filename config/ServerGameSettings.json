@@ -24,7 +24,7 @@
     "InventoryStacksModifier": 1.0,
     "DropTableModifier_General": 1.0,
     "DropTableModifier_Missions": 1.0,
-    "MaterialYieldModifier_Global": 1.0,
+    "MaterialYieldModifier_Global": 3.0,
     "BloodEssenceYieldModifier": 3.0,
     "BatBoundItems": false,
     "JournalVBloodSourceUnitMaxDistance": 25.0,
