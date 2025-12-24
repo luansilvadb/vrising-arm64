@@ -4,24 +4,32 @@ services:
     image: vrising-arm64
     container_name: vrising-server
     restart: unless-stopped
+    
+    # Graceful shutdown is critical for save data
+    stop_grace_period: 60s
+    stop_signal: SIGTERM
+    
     ports:
       - "9876:9876/udp"
       - "9877:9877/udp"
+      
     environment:
       # Server Configuration
       - SERVER_NAME=MyVServer
       - SAVE_NAME=world1
+      # Set to 1 to skip SteamCMD update on startup (faster boot)
+      - SKIP_UPDATE=0
       
       # Box64 Performance Optimization (4 cores ARM)
       - BOX64_DYNAREC=1
-      - BOX64_DYNAREC_BIGBLOCK=2
+      - BOX64_DYNAREC_BIGBLOCK=3
       - BOX64_DYNAREC_STRONGMEM=1
       - BOX64_DYNAREC_SAFEFLAGS=0
       - BOX64_DYNAREC_FASTNAN=1
       - BOX64_DYNAREC_FASTROUND=1
       - BOX64_DYNAREC_X87DOUBLE=1
       - BOX64_MAXCPU=4
-      - BOX64_LOG=0
+      - BOX64_LOG=0 # Keep logging low in production
       
       # Box86 Optimization (for SteamCMD)
       - BOX86_DYNAREC=1
@@ -33,10 +41,8 @@ services:
       - WINEDEBUG=-all
       - STAGING_SHARED_MEMORY=1
       
-      # Extra V Rising server arguments (optional)
-      - EXTRA_ARGS=
-      
     volumes:
+      # Data persistence - Ensure these permissions match UID 1000:1000 on host!
       - ./server-data:/data
     
     # Resource limits for 4 cores, 25GB RAM
@@ -44,7 +50,7 @@ services:
       resources:
         limits:
           cpus: '4'
-          memory: 20G
+          memory: 24G
         reservations:
           cpus: '2'
           memory: 8G
@@ -68,16 +74,13 @@ services:
         max-size: "10m"
         max-file: "3"
     
-    # Health check - monitors if V Rising server process is running
+    # Health check - lighter weight check
     healthcheck:
-      test: ["CMD", "bash", "-c", "pgrep -f VRisingServer.exe || exit 1"]
-      interval: 60s
-      timeout: 10s
+      test: ["CMD-SHELL", "pgrep -f VRisingServer.exe || exit 1"]
+      interval: 30s
+      timeout: 5s
       retries: 3
       start_period: 300s
-    
-    # Allow graceful shutdown time for saving
-    stop_grace_period: 30s
     
     tty: true
     stdin_open: true
