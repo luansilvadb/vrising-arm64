@@ -73,6 +73,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     cmake \
     build-essential \
+    python3 \
     # Bibliotecas X11 que Wine precisa
     libxinerama1 \
     libxrandr2 \
