@@ -20,6 +20,7 @@ services:
     environment:
       # Configurações básicas do servidor
       - SERVER_NAME=${SERVER_NAME:-Velion}
+      - SERVER_DESCRIPTION=${SERVER_DESCRIPTION:-Servidor dedicado brasileiro - Bem-vindo ao Velion!}
       - WORLD_NAME=${WORLD_NAME:-world1}
       - PASSWORD=${PASSWORD:-}
       - MAX_USERS=${MAX_USERS:-100}
@@ -35,16 +36,25 @@ services:
       # Modo de jogo
       - GAME_MODE_TYPE=${GAME_MODE_TYPE:-PvP}
 
+      # FPS do servidor (30 = menos CPU, 60 = mais fluido)
+      - SERVER_FPS=${SERVER_FPS:-60}
+
       # Atualização automática no restart
       - AUTO_UPDATE=${AUTO_UPDATE:-true}
+
+      # RCON (acesso admin remoto)
+      - RCON_ENABLED=${RCON_ENABLED:-true}
+      - RCON_PORT=${RCON_PORT:-25575}
+      - RCON_PASSWORD=${RCON_PASSWORD:-}
 
       # Timezone
       - TZ=${TZ:-America/Sao_Paulo}
 
-    # Portas expostas (UDP é obrigatório para V Rising)
+    # Portas expostas (UDP para jogo, TCP para RCON)
     ports:
       - "${GAME_PORT:-9876}:${GAME_PORT:-9876}/udp"
       - "${QUERY_PORT:-9877}:${QUERY_PORT:-9877}/udp"
+      - "${RCON_PORT:-25575}:${RCON_PORT:-25575}/tcp"
 
     # Volumes para persistência de dados
     volumes:

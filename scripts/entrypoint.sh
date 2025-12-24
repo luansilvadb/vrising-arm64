@@ -179,17 +179,17 @@ configure_server() {
     log_info "Configurando servidor..."
     mkdir -p "${SETTINGS_DIR}"
     
-    if [ ! -f "${SETTINGS_DIR}/ServerHostSettings.json" ]; then
-        log_info "Criando ServerHostSettings.json..."
-        cat > "${SETTINGS_DIR}/ServerHostSettings.json" << EOF
+    # Sempre recria ServerHostSettings.json para aplicar mudanças de variáveis
+    log_info "Atualizando ServerHostSettings.json..."
+    cat > "${SETTINGS_DIR}/ServerHostSettings.json" << EOF
 {
   "Name": "${SERVER_NAME}",
-  "Description": "V Rising Server on ARM64",
+  "Description": "${SERVER_DESCRIPTION:-Servidor dedicado brasileiro - Bem-vindo ao Velion!}",
   "Port": ${GAME_PORT},
   "QueryPort": ${QUERY_PORT},
   "MaxConnectedUsers": ${MAX_USERS},
   "MaxConnectedAdmins": 4,
-  "ServerFps": 30,
+  "ServerFps": ${SERVER_FPS:-60},
   "SaveName": "${WORLD_NAME}",
   "Password": "${PASSWORD}",
   "Secure": true,
@@ -202,11 +202,10 @@ configure_server() {
   "AdminOnlyDebugEvents": true,
   "DisableDebugEvents": false,
   "API": { "Enabled": false },
-  "Rcon": { "Enabled": false, "Port": 25575, "Password": "" }
+  "Rcon": { "Enabled": ${RCON_ENABLED:-true}, "Port": ${RCON_PORT:-25575}, "Password": "${RCON_PASSWORD:-}" }
 }
 EOF
-        log_success "ServerHostSettings.json criado!"
-    fi
+    log_success "ServerHostSettings.json atualizado!"
     
     if [ ! -f "${SETTINGS_DIR}/ServerGameSettings.json" ]; then
         log_info "Criando ServerGameSettings.json..."
