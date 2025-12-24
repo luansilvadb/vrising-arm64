@@ -35,7 +35,8 @@ fi
 export WINEPREFIX="$DATA_DIR/wine-prefix"
 export WINEARCH=win64
 export WINEDEBUG=-all
-export WINEDLLOVERRIDES="winemenubuilder.exe=d;mscoree=d;mshtml=d"
+# Desabilita crypt32 para evitar falhas de certificado SSL (necessário para SteamCMD)
+export WINEDLLOVERRIDES="crypt32=n;winemenubuilder.exe=d;mscoree=d;mshtml=d"
 
 if [ ! -f "$WINEPREFIX/system.reg" ]; then
     echo "[1/4] Inicializando Wine prefix..."
