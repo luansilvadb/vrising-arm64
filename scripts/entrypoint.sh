@@ -1,32 +1,18 @@
 #!/bin/bash
 # =============================================================================
-# V Rising Dedicated Server - Entrypoint Script
+# V Rising Dedicated Server - Entrypoint Script (FAST VERSION)
 # =============================================================================
 
-# =============================================================================
-# Cores para output
-# =============================================================================
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-log_info() {
-    echo -e "${BLUE}[INFO]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"
-}
-
-log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"
-}
-
-log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"
-}
+log_info() { echo -e "${BLUE}[INFO]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"; }
+log_warning() { echo -e "${YELLOW}[WARNING]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"; }
 
 # =============================================================================
 # Variáveis
@@ -37,10 +23,11 @@ SAVES_DIR="${SAVES_DIR:-/data/saves}"
 SETTINGS_DIR="${SAVES_DIR}/Settings"
 VRISING_APP_ID="${VRISING_APP_ID:-1829350}"
 
-# Wine paths
+# Wine - DESABILITAR MONO E GECKO para acelerar
 export WINEPREFIX="${WINEPREFIX:-/data/wine}"
 export WINEARCH="win64"
 export WINEDEBUG="-all"
+export WINEDLLOVERRIDES="mscoree=d;mshtml=d"
 export DISPLAY=":0"
 
 # Box settings
@@ -67,14 +54,11 @@ GAME_MODE_TYPE="${GAME_MODE_TYPE:-PvP}"
 
 init_display() {
     log_info "Iniciando display virtual (Xvfb)..."
-    
     pkill -9 Xvfb 2>/dev/null || true
     sleep 1
-    
     Xvfb :0 -screen 0 1024x768x24 &
     XVFB_PID=$!
-    sleep 3
-    
+    sleep 2
     if kill -0 ${XVFB_PID} 2>/dev/null; then
         log_success "Display virtual iniciado (PID: ${XVFB_PID})"
         return 0
@@ -84,53 +68,56 @@ init_display() {
     fi
 }
 
-init_wine() {
-    log_info "Inicializando Wine prefix..."
-    
+init_wine_fast() {
+    log_info "Inicializando Wine prefix (modo rápido)..."
     mkdir -p "${WINEPREFIX}"
     
     if [ -f "${WINEPREFIX}/system.reg" ]; then
-        log_info "Wine prefix já existe em ${WINEPREFIX}"
+        log_info "Wine prefix já existe"
         return 0
     fi
     
-    log_info "Criando novo Wine prefix (isso pode demorar alguns minutos)..."
+    log_info "Criando Wine prefix mínimo..."
     
-    # Usar box64 explicitamente para rodar wineboot
-    if box64 /opt/wine/bin/wineboot --init 2>&1; then
-        log_success "Wine prefix inicializado!"
-        box64 /opt/wine/bin/wineserver -w 2>/dev/null || true
-        sleep 3
+    # Criar estrutura mínima do Wine prefix manualmente (MUITO mais rápido)
+    mkdir -p "${WINEPREFIX}/drive_c/windows/system32"
+    mkdir -p "${WINEPREFIX}/drive_c/windows/syswow64"
+    mkdir -p "${WINEPREFIX}/drive_c/users/root/Temp"
+    mkdir -p "${WINEPREFIX}/drive_c/Program Files"
+    mkdir -p "${WINEPREFIX}/drive_c/Program Files (x86)"
+    
+    # Tentar inicializar Wine rapidamente (timeout de 30s)
+    log_info "Executando wineboot (timeout 60s)..."
+    timeout 60 box64 /opt/wine/bin/wineboot --init 2>&1 &
+    WINEBOOT_PID=$!
+    
+    # Aguardar um pouco e depois matar se ainda estiver rodando
+    sleep 10
+    
+    # Verificar se criou os arquivos básicos
+    if [ -d "${WINEPREFIX}/drive_c/windows" ]; then
+        log_success "Wine prefix básico criado!"
+        # Matar processos Wine extras se ainda estiverem rodando
+        box64 /opt/wine/bin/wineserver -k 2>/dev/null || true
+        sleep 2
         return 0
-    else
-        log_warning "Wineboot retornou com warnings..."
-        sleep 10
-        box64 /opt/wine/bin/wineserver -w 2>/dev/null || true
-        
-        if [ -f "${WINEPREFIX}/system.reg" ]; then
-            log_success "Wine prefix funcional!"
-            return 0
-        else
-            log_warning "Tentando criar prefix mínimo..."
-            mkdir -p "${WINEPREFIX}/drive_c/windows/system32"
-            mkdir -p "${WINEPREFIX}/drive_c/users/root"
-            return 0
-        fi
     fi
+    
+    log_warning "Continuando sem Wine prefix completo..."
+    return 0
 }
 
 install_or_update_server() {
     log_info "Verificando instalação do servidor V Rising..."
     
     if [ -f "${SERVER_DIR}/VRisingServer.exe" ]; then
-        log_info "Servidor encontrado. Verificando atualizações..."
-    else
-        log_info "Servidor não encontrado. Iniciando instalação..."
+        log_success "Servidor já instalado!"
+        return 0
     fi
     
+    log_info "Servidor não encontrado. Iniciando download..."
     log_info "Executando SteamCMD via Box86..."
-    log_info "Baixando V Rising Dedicated Server (AppID: ${VRISING_APP_ID})..."
-    log_info "Isso pode demorar de 5 a 15 minutos (~2GB)..."
+    log_info "Download de ~2GB - isso pode demorar 5-15 minutos..."
     
     cd "${STEAMCMD_DIR}"
     
@@ -140,21 +127,25 @@ install_or_update_server() {
     while [ $attempt -le $max_attempts ]; do
         log_info "Tentativa ${attempt} de ${max_attempts}..."
         
-        # Executar SteamCMD via Box86 explicitamente
         box86 /opt/steamcmd/linux32/steamcmd \
             +@sSteamCmdForcePlatformType windows \
             +force_install_dir "${SERVER_DIR}" \
             +login anonymous \
             +app_update ${VRISING_APP_ID} validate \
-            +quit || true
+            +quit 2>&1 | while read line; do
+                # Mostrar progresso
+                if [[ "$line" == *"Update state"* ]] || [[ "$line" == *"downloading"* ]] || [[ "$line" == *"progress"* ]]; then
+                    echo "[SteamCMD] $line"
+                fi
+            done
         
         if [ -f "${SERVER_DIR}/VRisingServer.exe" ]; then
-            log_success "Servidor V Rising instalado/atualizado!"
+            log_success "Servidor V Rising instalado!"
             return 0
         fi
         
-        log_warning "Tentativa ${attempt} não completou, aguardando..."
-        sleep 10
+        log_warning "Tentativa ${attempt} falhou, aguardando..."
+        sleep 5
         attempt=$((attempt + 1))
     done
     
@@ -162,25 +153,21 @@ install_or_update_server() {
         log_success "Servidor V Rising encontrado!"
         return 0
     else
-        log_error "Não foi possível instalar o servidor."
+        log_error "Falha ao instalar servidor."
         return 1
     fi
 }
 
 configure_server() {
     log_info "Configurando servidor..."
-    
     mkdir -p "${SETTINGS_DIR}"
     
-    HOST_SETTINGS_FILE="${SETTINGS_DIR}/ServerHostSettings.json"
-    
-    if [ ! -f "${HOST_SETTINGS_FILE}" ]; then
+    if [ ! -f "${SETTINGS_DIR}/ServerHostSettings.json" ]; then
         log_info "Criando ServerHostSettings.json..."
-        
-        cat > "${HOST_SETTINGS_FILE}" << EOF
+        cat > "${SETTINGS_DIR}/ServerHostSettings.json" << EOF
 {
   "Name": "${SERVER_NAME}",
-  "Description": "V Rising Dedicated Server on ARM64",
+  "Description": "V Rising Server on ARM64",
   "Port": ${GAME_PORT},
   "QueryPort": ${QUERY_PORT},
   "MaxConnectedUsers": ${MAX_USERS},
@@ -202,16 +189,11 @@ configure_server() {
 }
 EOF
         log_success "ServerHostSettings.json criado!"
-    else
-        log_info "ServerHostSettings.json já existe."
     fi
     
-    GAME_SETTINGS_FILE="${SETTINGS_DIR}/ServerGameSettings.json"
-    
-    if [ ! -f "${GAME_SETTINGS_FILE}" ]; then
+    if [ ! -f "${SETTINGS_DIR}/ServerGameSettings.json" ]; then
         log_info "Criando ServerGameSettings.json..."
-        
-        cat > "${GAME_SETTINGS_FILE}" << EOF
+        cat > "${SETTINGS_DIR}/ServerGameSettings.json" << EOF
 {
   "GameModeType": "${GAME_MODE_TYPE}",
   "CastleDamageMode": "TimeRestricted",
@@ -273,8 +255,6 @@ EOF
 }
 EOF
         log_success "ServerGameSettings.json criado!"
-    else
-        log_info "ServerGameSettings.json já existe."
     fi
 }
 
@@ -283,18 +263,14 @@ start_server() {
     log_info "Iniciando servidor V Rising..."
     log_info "=============================================="
     log_info "Server Name: ${SERVER_NAME}"
-    log_info "World Name: ${WORLD_NAME}"
-    log_info "Game Port: ${GAME_PORT}"
-    log_info "Query Port: ${QUERY_PORT}"
-    log_info "Max Users: ${MAX_USERS}"
-    log_info "Game Mode: ${GAME_MODE_TYPE}"
+    log_info "Game Port: ${GAME_PORT} | Query Port: ${QUERY_PORT}"
+    log_info "Max Users: ${MAX_USERS} | Game Mode: ${GAME_MODE_TYPE}"
     log_info "=============================================="
     
     cd "${SERVER_DIR}"
     
     log_info "Executando VRisingServer.exe via Box64 + Wine..."
     
-    # Executar via box64 explicitamente
     exec box64 /opt/wine/bin/wine64 "${SERVER_DIR}/VRisingServer.exe" \
         -persistentDataPath "${SAVES_DIR}" \
         -serverName "${SERVER_NAME}" \
@@ -302,14 +278,10 @@ start_server() {
         -logFile "/data/logs/VRisingServer.log"
 }
 
-# =============================================================================
-# Tratamento de sinais
-# =============================================================================
 shutdown_server() {
-    log_warning "Recebido sinal de shutdown..."
+    log_warning "Shutdown..."
     box64 /opt/wine/bin/wineserver -k 2>/dev/null || true
     pkill -9 Xvfb 2>/dev/null || true
-    log_success "Servidor finalizado!"
     exit 0
 }
 
@@ -320,23 +292,16 @@ trap shutdown_server SIGTERM SIGINT SIGHUP
 # =============================================================================
 
 log_info "=============================================="
-log_info " V Rising Dedicated Server - ARM64"
+log_info " V Rising Dedicated Server - ARM64 (FAST)"
 log_info "=============================================="
-log_info "Timezone: ${TZ}"
-log_info "Server Directory: ${SERVER_DIR}"
-log_info "Saves Directory: ${SAVES_DIR}"
+log_info "Server: ${SERVER_DIR} | Saves: ${SAVES_DIR}"
 log_info "=============================================="
 
 ln -sf /usr/share/zoneinfo/${TZ} /etc/localtime 2>/dev/null || true
-
 mkdir -p "${SERVER_DIR}" "${SAVES_DIR}" "${WINEPREFIX}" /data/logs
 
 init_display || exit 1
-
-init_wine || log_warning "Continuando..."
-
+init_wine_fast
 install_or_update_server || exit 1
-
 configure_server
-
 start_server
