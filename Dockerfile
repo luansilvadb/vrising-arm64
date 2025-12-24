@@ -19,6 +19,7 @@ RUN dpkg --add-architecture armhf \
     cabextract \
     tar \
     unzip \
+    locales \
     libc6:armhf \
     libstdc++6:armhf \
     libncurses6:armhf \
@@ -55,7 +56,7 @@ RUN echo '#!/bin/bash' > /usr/bin/steamcmd \
 
 # Generate locales to silence steamcmd errors
 RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
-ENV LANG en_US.UTF-8
+ENV LANG=en_US.UTF-8
 
 # Bootstrap SteamCMD to prevent runtime update loop and patch binary for Box86
 # 1. Run update once to get latest binary
