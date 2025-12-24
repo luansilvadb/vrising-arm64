@@ -36,11 +36,15 @@ RUN useradd -u 1000 -m -s /bin/bash vrising && \
 
 # 4. Baixa RootFS via FEXRootFSFetcher com respostas automáticas
 USER vrising
-# Respostas: y (baixar), 0 (primeira opção), n (não extrair), y (usar como default)
-RUN printf 'y\n0\nn\ny\n' | FEXRootFSFetcher || \
+# Respostas: y (baixar), 0 (primeira opção), y (extrair), y (usar como default)
+RUN printf 'y\n0\ny\ny\n' | FEXRootFSFetcher || \
     echo "Warning: FEXRootFSFetcher may have issues, continuing..."
 
-# 5. Copia scripts (volta para root temporariamente)
+# 5. Instala Wine64 dentro do RootFS extraído
+RUN FEXBash -c "apt-get update && apt-get install -y --no-install-recommends wine64 winbind && rm -rf /var/lib/apt/lists/*" || \
+    echo "Warning: Wine installation may have issues, continuing..."
+
+# 6. Copia scripts (volta para root temporariamente)
 USER root
 COPY --chown=vrising:vrising entrypoint.sh /app/
 COPY --chown=vrising:vrising wine-wrapper.sh /app/
