@@ -47,26 +47,24 @@ RUN mkdir -p $STEAMCMD_DIR \
     && curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - \
     && chmod +x steamcmd.sh
 
-# Create a wrapper for steamcmd to ensure it runs via box86 and is in PATH
-# We must bypass steamcmd.sh because it tries to detect arch and run natively.
-# We point directly to the 32-bit binary wrapper.
-RUN echo '#!/bin/bash' > /usr/bin/steamcmd \
-    && echo '/usr/games/steamcmd/linux32/steamcmd "$@"' >> /usr/bin/steamcmd \
-    && chmod +x /usr/bin/steamcmd
-
 # Generate locales to silence steamcmd errors
 RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
 ENV LANG=en_US.UTF-8
 
-# Bootstrap SteamCMD to prevent runtime update loop and patch binary for Box86
-# 1. Run update once to get latest binary
-# 2. Rename real binary to steamcmd.orig
-# 3. Create wrapper script in place of binary to force Box86 usage on re-exec
-RUN steamcmd +quit || true \
-    && mv /usr/games/steamcmd/linux32/steamcmd /usr/games/steamcmd/linux32/steamcmd.orig \
-    && echo '#!/bin/bash' > /usr/games/steamcmd/linux32/steamcmd \
-    && echo 'box86 /usr/games/steamcmd/linux32/steamcmd.orig "$@"' >> /usr/games/steamcmd/linux32/steamcmd \
-    && chmod +x /usr/games/steamcmd/linux32/steamcmd
+# Setup Box86 as binfmt handler for i386 binaries
+# This makes Linux kernel automatically use box86 for any 32-bit x86 ELF executable
+RUN echo ':BOX86:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x03\x00:\xff\xff\xff\xff\xff\xfe\xfe\x00\x00\x00\x00\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/local/bin/box86:' > /usr/share/binfmts/box86
+
+# Create wrapper that explicitly calls box86 (as fallback if binfmt doesn't work in container)
+RUN echo '#!/bin/bash' > /usr/bin/steamcmd \
+    && echo 'cd /usr/games/steamcmd' >> /usr/bin/steamcmd \
+    && echo 'exec box86 ./linux32/steamcmd "$@"' >> /usr/bin/steamcmd \
+    && chmod +x /usr/bin/steamcmd
+
+# Bootstrap SteamCMD during build to download updates
+# We do NOT rename/wrap the binary anymore - let it update naturally
+# The /usr/bin/steamcmd wrapper always calls box86 explicitly
+RUN cd /usr/games/steamcmd && box86 ./linux32/steamcmd +quit || echo "Bootstrap complete (exit ok)"
 
 # Setup directory structure
 WORKDIR /data

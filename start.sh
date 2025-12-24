@@ -17,9 +17,11 @@ export WINEARCH="win64"
 echo "--- Updating V Rising (AppID: 1829350) ---"
 echo "--- SteamCMD will download Windows version to /data/server ---"
 
-# Run SteamCMD with verbose output
-echo "--- Running SteamCMD ---"
-steamcmd +@sSteamCmdForcePlatformType windows \
+# Run SteamCMD with verbose output using explicit box86
+echo "--- Running SteamCMD via box86 ---"
+cd /usr/games/steamcmd
+box86 ./linux32/steamcmd \
+    +@sSteamCmdForcePlatformType windows \
     +force_install_dir /data/server \
     +login anonymous \
     +app_update 1829350 validate \
