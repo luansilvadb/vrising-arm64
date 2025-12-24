@@ -7,7 +7,8 @@
 # Testado em: Oracle Cloud ARM64 (Ampere A1) com Ubuntu 20.04
 # =============================================================================
 
-FROM debian:bookworm-slim
+# Usar imagem base que já tem Box86/Box64 pré-instalados
+FROM weilbyte/box:debian-11
 
 LABEL maintainer="VRising ARM64 Server"
 LABEL description="V Rising Dedicated Server for ARM64 using Box64/Wine"
@@ -41,29 +42,21 @@ ENV DEBIAN_FRONTEND=noninteractive \
     WINEDEBUG="-all" \
     # Display virtual
     DISPLAY=":0" \
-    # Box86/Box64 paths
-    BOX86_PATH="/usr/local/bin/box86" \
-    BOX64_PATH="/usr/local/bin/box64" \
+    # Box86/Box64 settings
     BOX86_LOG="0" \
     BOX64_LOG="0" \
-    # Library paths para Box86
-    LD_LIBRARY_PATH="/usr/lib/arm-linux-gnueabihf:/lib/arm-linux-gnueabihf"
+    BOX86_NOBANNER="1" \
+    BOX64_NOBANNER="1"
 
 # =============================================================================
-# Instalação de dependências base
+# Instalação de dependências adicionais
 # =============================================================================
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Utilitários básicos
     ca-certificates \
     curl \
     wget \
-    gnupg2 \
     xz-utils \
-    # Bibliotecas necessárias
-    libatomic1 \
-    libc6 \
-    libgcc-s1 \
-    libstdc++6 \
     # Display virtual para Wine
     xvfb \
     # JSON processing
@@ -77,68 +70,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # =============================================================================
-# Adicionar arquitetura armhf (necessário para Box86 e SteamCMD)
-# =============================================================================
-RUN dpkg --add-architecture armhf && \
-    apt-get update && apt-get install -y --no-install-recommends \
-    # Bibliotecas essenciais armhf para SteamCMD
-    libc6:armhf \
-    libstdc++6:armhf \
-    libncurses6:armhf \
-    libtinfo6:armhf \
-    libcurl4:armhf \
-    libssl3:armhf \
-    zlib1g:armhf \
-    libsdl2-2.0-0:armhf \
-    libatomic1:armhf \
-    libpulse0:armhf \
-    libopenal1:armhf \
-    libgl1:armhf \
-    libglu1-mesa:armhf \
-    libasound2:armhf \
-    libcap2:armhf \
-    libdbus-1-3:armhf \
-    libfontconfig1:armhf \
-    libfreetype6:armhf \
-    libglib2.0-0:armhf \
-    libice6:armhf \
-    libpng16-16:armhf \
-    libsm6:armhf \
-    libusb-1.0-0:armhf \
-    libx11-6:armhf \
-    libxau6:armhf \
-    libxcb1:armhf \
-    libxcursor1:armhf \
-    libxdmcp6:armhf \
-    libxext6:armhf \
-    libxfixes3:armhf \
-    libxi6:armhf \
-    libxinerama1:armhf \
-    libxrandr2:armhf \
-    libxrender1:armhf \
-    libxxf86vm1:armhf \
-    && rm -rf /var/lib/apt/lists/*
-
-# =============================================================================
-# Instalar Box86 (emulador x86 para ARM - necessário para SteamCMD)
-# =============================================================================
-RUN wget -qO- https://pi-apps-coders.github.io/box86-debs/KEY.gpg | gpg --dearmor -o /usr/share/keyrings/box86-archive-keyring.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/box86-archive-keyring.gpg arch=armhf] https://Pi-Apps-Coders.github.io/box86-debs/debian bookworm main" | tee /etc/apt/sources.list.d/box86.list && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends box86-generic-arm:armhf && \
-    rm -rf /var/lib/apt/lists/*
-
-# =============================================================================
-# Instalar Box64 (emulador x86_64 para ARM64)
-# =============================================================================
-RUN wget -qO- https://pi-apps-coders.github.io/box64-debs/KEY.gpg | gpg --dearmor -o /usr/share/keyrings/box64-archive-keyring.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/box64-archive-keyring.gpg] https://Pi-Apps-Coders.github.io/box64-debs/debian bookworm main" | tee /etc/apt/sources.list.d/box64.list && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends box64-generic-arm && \
-    rm -rf /var/lib/apt/lists/*
-
-# =============================================================================
-# Instalar Wine (via Box64/Box86)
+# Instalar Wine (via Box64)
 # =============================================================================
 RUN mkdir -p /opt/wine && \
     # Baixar Wine x86_64
@@ -155,8 +87,8 @@ RUN mkdir -p /opt/wine && \
 # =============================================================================
 # Inicializar Wine prefix
 # =============================================================================
-RUN xvfb-run -a box64 wineboot --init && \
-    box64 wineserver -w || true
+RUN xvfb-run -a box64 /opt/wine/bin/wineboot --init && \
+    box64 /opt/wine/bin/wineserver -w || true
 
 # =============================================================================
 # Instalar SteamCMD (versão Linux x86)
@@ -167,19 +99,13 @@ RUN mkdir -p /opt/steamcmd && \
     tar -xzf steamcmd.tar.gz && \
     rm steamcmd.tar.gz && \
     chmod +x steamcmd.sh && \
-    # Criar wrapper script para executar SteamCMD via Box86
-    echo '#!/bin/bash' > /usr/local/bin/steamcmd && \
-    echo 'cd /opt/steamcmd' >> /usr/local/bin/steamcmd && \
-    echo 'exec box86 /opt/steamcmd/linux32/steamcmd "$@"' >> /usr/local/bin/steamcmd && \
-    chmod +x /usr/local/bin/steamcmd && \
-    # Rodar SteamCMD uma vez para baixar as dependências
-    cd /opt/steamcmd && \
-    box86 ./linux32/steamcmd +quit || true
+    # Rodar SteamCMD uma vez para baixar as dependências iniciais
+    box86 /opt/steamcmd/linux32/steamcmd +quit || true
 
 # =============================================================================
 # Criar diretórios necessários
 # =============================================================================
-RUN mkdir -p ${SERVER_DIR} ${SAVES_DIR} /data/logs /scripts
+RUN mkdir -p /data/server /data/saves /data/logs /scripts
 
 # =============================================================================
 # Copiar scripts
