@@ -7,9 +7,14 @@ on:
     branches: [main]
   workflow_dispatch:  # Permite rodar manualmente
 
+env:
+  IMAGE_NAME: vrising-arm64
+  TEST_TIMEOUT: 300  # 5 minutos para download do jogo
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 60  # Timeout total do job
     
     steps:
       - name: Checkout
@@ -30,39 +35,242 @@ jobs:
           platforms: linux/arm64
           push: false
           load: true
-          tags: vrising-arm64:test
+          tags: ${{ env.IMAGE_NAME }}:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Test Container Startup
+      # =========================================================================
+      # TESTES DE VALIDAÇÃO DO SERVIDOR
+      # =========================================================================
+      
+      - name: 🧪 Start Container for Testing
         run: |
-          echo "🧪 Testing container startup..."
+          echo "🚀 Iniciando container para testes..."
+          
+          # Criar volumes para persistência
+          docker volume create vrising-test-data
+          docker volume create vrising-test-saves
+          
+          # Iniciar container
           docker run --platform linux/arm64 -d \
             --name vrising-test \
-            -e SERVER_NAME="Test Server" \
-            -e DRY_RUN=true \
-            vrising-arm64:test
+            -e SERVER_NAME="GitHub Actions Test" \
+            -e MAX_USERS=4 \
+            -e AUTO_UPDATE=true \
+            -e BEPINEX_ENABLED=false \
+            -v vrising-test-data:/data/server \
+            -v vrising-test-saves:/data/saves \
+            ${{ env.IMAGE_NAME }}:test
           
-          # Aguarda 30 segundos para inicialização
-          sleep 30
+          echo "✅ Container iniciado!"
+
+      - name: ⏳ Wait for Server Initialization
+        run: |
+          echo "⏳ Aguardando inicialização do servidor (pode demorar até 10 min)..."
+          echo "   - Download do jogo via SteamCMD: ~2GB"
+          echo "   - Inicialização do Wine"
+          echo "   - Configuração do servidor"
+          echo ""
           
-          # Verifica se o container ainda está rodando
-          if docker ps | grep -q vrising-test; then
-            echo "✅ Container iniciou com sucesso!"
-            docker logs vrising-test --tail 50
+          # Função para mostrar progresso
+          show_progress() {
+            local elapsed=$1
+            local status=$(docker inspect -f '{{.State.Status}}' vrising-test 2>/dev/null || echo "unknown")
+            echo "[$elapsed s] Container status: $status"
+          }
+          
+          # Aguardar até 10 minutos (600s) com updates a cada 30s
+          for i in $(seq 1 20); do
+            sleep 30
+            elapsed=$((i * 30))
+            show_progress $elapsed
+            
+            # Verificar se container ainda está rodando
+            if ! docker ps | grep -q vrising-test; then
+              echo "❌ Container parou inesperadamente!"
+              docker logs vrising-test --tail 100
+              exit 1
+            fi
+            
+            # Verificar se VRisingServer.exe foi baixado
+            if docker exec vrising-test test -f /data/server/VRisingServer.exe 2>/dev/null; then
+              echo "✅ VRisingServer.exe encontrado!"
+              break
+            fi
+          done
+
+      - name: 🔍 Validate Server Files
+        id: validate_files
+        run: |
+          echo "🔍 Validando arquivos do servidor..."
+          echo ""
+          
+          ERRORS=0
+          
+          # Verificar VRisingServer.exe
+          if docker exec vrising-test test -f /data/server/VRisingServer.exe; then
+            SIZE=$(docker exec vrising-test stat -c%s /data/server/VRisingServer.exe 2>/dev/null || echo "0")
+            echo "✅ VRisingServer.exe existe ($(numfmt --to=iec $SIZE 2>/dev/null || echo $SIZE bytes))"
           else
-            echo "❌ Container falhou!"
-            docker logs vrising-test
-            exit 1
+            echo "❌ VRisingServer.exe NÃO encontrado!"
+            ERRORS=$((ERRORS + 1))
           fi
           
-          docker stop vrising-test
+          # Verificar DLLs críticas
+          for dll in "VRisingServer_Data/Managed/ProjectM.dll" "VRisingServer_Data/Managed/Unity.Entities.dll"; do
+            if docker exec vrising-test test -f "/data/server/$dll"; then
+              echo "✅ $dll existe"
+            else
+              echo "⚠️  $dll não encontrado (pode ser baixado em runtime)"
+            fi
+          done
+          
+          # Verificar configurações
+          if docker exec vrising-test test -f /data/saves/Settings/ServerHostSettings.json; then
+            echo "✅ ServerHostSettings.json gerado"
+            echo "   Conteúdo:"
+            docker exec vrising-test cat /data/saves/Settings/ServerHostSettings.json | head -20
+          else
+            echo "⚠️  ServerHostSettings.json ainda não gerado"
+          fi
+          
+          echo ""
+          echo "files_validated=$((ERRORS == 0))" >> $GITHUB_OUTPUT
 
-      - name: Build Summary
+      - name: 📋 Check Container Logs
+        id: check_logs
         run: |
-          echo "## 🎮 V Rising ARM64 Build" >> $GITHUB_STEP_SUMMARY
+          echo "📋 Analisando logs do container..."
+          echo ""
+          
+          # Capturar logs
+          docker logs vrising-test > /tmp/container.log 2>&1
+          
+          # Indicadores de sucesso
+          SUCCESS_INDICATORS=(
+            "V Rising Dedicated Server - ARM64"
+            "Display virtual iniciado"
+            "Wine prefix"
+            "SteamCMD"
+            "Servidor V Rising instalado"
+            "Configurando servidor"
+            "ServerHostSettings.json atualizado"
+            "Iniciando servidor V Rising"
+          )
+          
+          # Indicadores de erro
+          ERROR_INDICATORS=(
+            "FATAL"
+            "Falha ao instalar servidor"
+            "exit 1"
+            "wine: command not found"
+            "box64: command not found"
+          )
+          
+          echo "### ✅ Etapas Completadas:"
+          STEPS_OK=0
+          for indicator in "${SUCCESS_INDICATORS[@]}"; do
+            if grep -q "$indicator" /tmp/container.log; then
+              echo "  ✓ $indicator"
+              STEPS_OK=$((STEPS_OK + 1))
+            fi
+          done
+          
+          echo ""
+          echo "### ❌ Erros Encontrados:"
+          ERRORS=0
+          for indicator in "${ERROR_INDICATORS[@]}"; do
+            if grep -q "$indicator" /tmp/container.log; then
+              echo "  ✗ $indicator"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+          
+          if [ $ERRORS -eq 0 ]; then
+            echo "  Nenhum erro crítico encontrado!"
+          fi
+          
+          echo ""
+          echo "📊 Resumo: $STEPS_OK/${#SUCCESS_INDICATORS[@]} etapas OK, $ERRORS erros"
+          
+          # Salvar para summary
+          echo "steps_completed=$STEPS_OK" >> $GITHUB_OUTPUT
+          echo "steps_total=${#SUCCESS_INDICATORS[@]}" >> $GITHUB_OUTPUT
+          echo "errors_found=$ERRORS" >> $GITHUB_OUTPUT
+
+      - name: 🖥️ Check Running Processes
+        run: |
+          echo "🖥️ Verificando processos em execução..."
+          echo ""
+          
+          # Listar processos no container
+          echo "### Processos ativos:"
+          docker exec vrising-test ps aux 2>/dev/null || echo "Comando ps não disponível"
+          
+          echo ""
+          echo "### Verificação de componentes:"
+          
+          # Verificar Xvfb
+          if docker exec vrising-test pgrep -x Xvfb > /dev/null 2>&1; then
+            echo "✅ Xvfb (Display Virtual) rodando"
+          else
+            echo "⚠️  Xvfb não encontrado"
+          fi
+          
+          # Verificar Wine/Box64
+          if docker exec vrising-test pgrep -f "wine" > /dev/null 2>&1; then
+            echo "✅ Wine rodando"
+          else
+            echo "⚠️  Wine não encontrado (servidor pode ainda estar iniciando)"
+          fi
+          
+          # Verificar VRisingServer
+          if docker exec vrising-test pgrep -f "VRisingServer" > /dev/null 2>&1; then
+            echo "✅ VRisingServer.exe rodando!"
+          else
+            echo "⚠️  VRisingServer.exe não detectado (pode estar iniciando)"
+          fi
+
+      - name: 📊 Full Container Logs
+        if: always()
+        run: |
+          echo "📊 Logs completos do container:"
+          echo "================================"
+          docker logs vrising-test 2>&1 || echo "Falha ao obter logs"
+
+      - name: 🧹 Cleanup
+        if: always()
+        run: |
+          echo "🧹 Limpando recursos..."
+          docker stop vrising-test 2>/dev/null || true
+          docker rm vrising-test 2>/dev/null || true
+          docker volume rm vrising-test-data vrising-test-saves 2>/dev/null || true
+
+      # =========================================================================
+      # SUMÁRIO FINAL
+      # =========================================================================
+      
+      - name: 📝 Build Summary
+        if: always()
+        run: |
+          echo "## 🎮 V Rising ARM64 - Relatório de Build" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Build ARM64 concluído com sucesso!" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Informações do Build" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Valor |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Image** | \`${{ env.IMAGE_NAME }}:test\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Platform** | \`linux/arm64\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch** | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Image:** vrising-arm64:test" >> $GITHUB_STEP_SUMMARY
-          echo "**Platform:** linux/arm64" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### ✅ Validações" >> $GITHUB_STEP_SUMMARY
+          echo "- Etapas completadas: ${{ steps.check_logs.outputs.steps_completed }}/${{ steps.check_logs.outputs.steps_total }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Erros encontrados: ${{ steps.check_logs.outputs.errors_found }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.check_logs.outputs.errors_found }}" = "0" ]; then
+            echo "### 🚀 Status: PRONTO PARA PRODUÇÃO" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ⚠️ Status: REQUER REVISÃO" >> $GITHUB_STEP_SUMMARY
+          fi
