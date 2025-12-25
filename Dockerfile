@@ -208,14 +208,28 @@ RUN mkdir -p /opt/steamcmd && \
     tar -xzf steamcmd.tar.gz && \
     rm steamcmd.tar.gz && \
     chmod +x steamcmd.sh && \
-    # Criar script wrapper para SteamCMD
+    # Criar wrapper para SteamCMD (como tsx-cloud faz)
     echo '#!/bin/bash' > /usr/local/bin/steamcmd.sh && \
-    echo 'exec box86 /opt/steamcmd/linux32/steamcmd "$@"' >> /usr/local/bin/steamcmd.sh && \
+    echo 'exec /usr/local/bin/box86 /opt/steamcmd/linux32/steamcmd "$@"' >> /usr/local/bin/steamcmd.sh && \
     chmod +x /usr/local/bin/steamcmd.sh && \
-    # Pré-inicializar SteamCMD para que ele se atualize durante o build
+    # Criar wrapper para Wine (como tsx-cloud faz)
+    echo '#!/bin/bash' > /usr/local/bin/wine && \
+    echo 'exec /usr/local/bin/box64 /opt/wine/bin/wine "$@"' >> /usr/local/bin/wine && \
+    chmod +x /usr/local/bin/wine && \
+    # Criar wrapper para wine64
+    ln -sf /usr/local/bin/wine /usr/local/bin/wine64 && \
+    # Criar wrapper para wineboot
+    echo '#!/bin/bash' > /usr/local/bin/wineboot && \
+    echo 'exec /usr/local/bin/box64 /opt/wine/bin/wineboot "$@"' >> /usr/local/bin/wineboot && \
+    chmod +x /usr/local/bin/wineboot && \
+    # Criar wrapper para wineserver
+    echo '#!/bin/bash' > /usr/local/bin/wineserver && \
+    echo 'exec /usr/local/bin/box64 /opt/wine/bin/wineserver "$@"' >> /usr/local/bin/wineserver && \
+    chmod +x /usr/local/bin/wineserver && \
+    # Pré-inicializar SteamCMD
     echo "Pré-inicializando SteamCMD (isso pode demorar)..." && \
     for i in 1 2 3; do \
-    box86 /opt/steamcmd/linux32/steamcmd +quit 2>/dev/null || true; \
+    /usr/local/bin/steamcmd.sh +quit 2>/dev/null || true; \
     sleep 2; \
     done && \
     echo "SteamCMD pré-inicializado!"

@@ -66,39 +66,33 @@ NTSYNC_AVAILABLE="false"
 
 check_ntsync() {
     log_ntsync "=============================================="
-    log_ntsync "Verificando suporte NTSync..."
+    log_ntsync "Checking NTSYNC"
     log_ntsync "=============================================="
-    log_ntsync "Kernel: $(uname -r)"
+    log_ntsync "The NTSYNC module has been present in the Linux kernel since version 6.14"
+    log_ntsync "Kernel version on this machine is -- $(uname -r)"
     
-    # Verificar se o device /dev/ntsync existe
-    if [ -e "/dev/ntsync" ]; then
-        log_ntsync "Device /dev/ntsync encontrado!"
-        
-        # Verificar se o módulo está carregado
-        if lsmod 2>/dev/null | grep -q ntsync; then
-            log_success "NTSync disponível e módulo carregado!"
+    # Verificar exatamente como tsx-cloud faz
+    /usr/bin/lsof /dev/ntsync 2>/dev/null || true
+    
+    if /sbin/lsmod 2>/dev/null | grep -q ntsync; then
+        if /usr/bin/lsof /dev/ntsync > /dev/null 2>&1; then
+            log_success "NTSYNC Module is present in kernel, ntsync is running."
             NTSYNC_AVAILABLE="true"
-            
-            # Verificar se está sendo usado
-            if command -v lsof &>/dev/null; then
-                if lsof /dev/ntsync 2>/dev/null | grep -q wine; then
-                    log_success "NTSync está ativo (processos Wine usando)"
-                fi
-            fi
         else
-            log_warning "Device /dev/ntsync existe, mas módulo não detectado via lsmod"
-            log_info "Isso pode ser normal se ntsync está built-in no kernel"
+            log_info "NTSYNC Module is present in kernel, but ntsync is NOT running. No problem."
             NTSYNC_AVAILABLE="true"
         fi
+    elif [ -e "/dev/ntsync" ]; then
+        # Device existe mas módulo não aparece via lsmod (pode ser built-in)
+        log_info "Device /dev/ntsync exists, assuming ntsync is built-in kernel."
+        NTSYNC_AVAILABLE="true"
     else
-        log_info "NTSync não disponível (/dev/ntsync não encontrado)"
+        log_info "NTSYNC Module is NOT present in kernel. No problem — ntsync is not necessary."
         log_info ""
         log_info "Para habilitar NTSync (melhor performance):"
-        log_info "  1. Use kernel Linux 6.14+ no host"
-        log_info "  2. Carregue o módulo: sudo modprobe ntsync"
-        log_info "  3. Adicione ao docker-compose.yml:"
-        log_info "     devices:"
-        log_info "       - /dev/ntsync:/dev/ntsync"
+        log_info "  1. Kernel Linux 6.14+ no host"
+        log_info "  2. sudo modprobe ntsync"
+        log_info "  3. echo \"ntsync\" | sudo tee /etc/modules-load.d/ntsync.conf"
         log_info ""
         NTSYNC_AVAILABLE="false"
     fi
@@ -164,7 +158,7 @@ init_wine_fast() {
     
     # Tentar inicializar Wine rapidamente (timeout de 60s)
     log_info "Executando wineboot (timeout 60s)..."
-    timeout 60 box64 /opt/wine/bin/wineboot --init 2>&1 &
+    timeout 60 wineboot --init 2>&1 &
     WINEBOOT_PID=$!
     
     # Aguardar um pouco
@@ -174,7 +168,7 @@ init_wine_fast() {
     if [ -d "${WINEPREFIX}/drive_c/windows" ]; then
         log_success "Wine prefix básico criado!"
         # Matar processos Wine extras se ainda estiverem rodando
-        box64 /opt/wine/bin/wineserver -k 2>/dev/null || true
+        wineserver -k 2>/dev/null || true
         sleep 2
         return 0
     fi
@@ -226,9 +220,10 @@ install_or_update_server() {
             log_info "Tentativa ${attempt} de ${max_attempts}..."
         fi
         
-        box86 /opt/steamcmd/linux32/steamcmd \
-            +force_install_dir "${SERVER_DIR}" \
+        # Usar wrapper steamcmd.sh (como tsx-cloud faz)
+        /usr/local/bin/steamcmd.sh \
             +@sSteamCmdForcePlatformType windows \
+            +force_install_dir "${SERVER_DIR}" \
             +login anonymous \
             +app_update ${VRISING_APP_ID} validate \
             +quit
@@ -352,22 +347,16 @@ start_server() {
         exit 1
     fi
     
-    if [ ! -f "/opt/wine/bin/wine" ]; then
-        log_error "wine não encontrado em /opt/wine/bin/"
-        ls -la /opt/wine/bin/ 2>/dev/null || log_error "Diretório /opt/wine/bin/ não existe"
+    if ! command -v wine &>/dev/null; then
+        log_error "wine não encontrado no PATH!"
         exit 1
     fi
     
-    log_info "Executando VRisingServer.exe via Box64 + Wine..."
-    log_info "Wine: /opt/wine/bin/wine (staging-tkg)"
+    log_info "Executando VRisingServer.exe via Wine (staging-tkg)..."
     log_info "Server: ${SERVER_DIR}/VRisingServer.exe"
     
-    # Adicionar /opt/wine/bin ao PATH para Box64 encontrar
-    export PATH="/opt/wine/bin:${PATH}"
-    export BOX64_PATH="/opt/wine/bin:/usr/local/bin:/usr/bin"
-    
-    # Executar via box64 com caminho completo
-    exec /usr/local/bin/box64 /opt/wine/bin/wine "${SERVER_DIR}/VRisingServer.exe" \
+    # Executar via wrapper wine (como tsx-cloud faz)
+    exec wine "${SERVER_DIR}/VRisingServer.exe" \
         -persistentDataPath "${SAVES_DIR}" \
         -serverName "${SERVER_NAME}" \
         -saveName "${WORLD_NAME}" \
