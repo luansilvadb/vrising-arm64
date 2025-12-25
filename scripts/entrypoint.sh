@@ -123,6 +123,20 @@ load_emulators_config() {
     fi
 }
 
+configure_bepinex() {
+    log_info "Configurando BepInEx/Plugins..."
+    
+    # Carregar script de setup do BepInEx
+    if [ -f "/scripts/setup_bepinex.sh" ]; then
+        source /scripts/setup_bepinex.sh
+        # A função configure_bepinex do script é exportada e sobrescreve esta
+        # Então precisamos renomear a chamada
+        setup_bepinex_if_enabled
+    else
+        log_warning "Script BepInEx não encontrado"
+    fi
+}
+
 # =============================================================================
 # Funções Originais
 # =============================================================================
@@ -420,5 +434,6 @@ init_display || exit 1          # Iniciar Xvfb
 init_wine_fast                  # Inicializar Wine prefix
 configure_wine_audio            # Desabilitar audio
 install_or_update_server || exit 1  # Baixar/atualizar servidor
+configure_bepinex               # Configurar BepInEx/Plugins
 configure_server                # Aplicar configurações
 start_server                    # Iniciar servidor

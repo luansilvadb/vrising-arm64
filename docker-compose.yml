@@ -56,6 +56,9 @@ services:
       # Atualização automática no restart
       - AUTO_UPDATE=${AUTO_UPDATE:-true}
 
+      # BepInEx/Plugins (true = habilita mods)
+      - ENABLE_PLUGINS=${ENABLE_PLUGINS:-false}
+
       # RCON (acesso admin remoto)
       - RCON_ENABLED=${RCON_ENABLED:-true}
       - RCON_PORT=${RCON_PORT:-25575}

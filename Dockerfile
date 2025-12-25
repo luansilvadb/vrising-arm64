@@ -55,6 +55,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     # Diretórios
     SERVER_DIR="/data/server" \
     SAVES_DIR="/data/saves" \
+    # BepInEx/Plugins (true = habilita mods)
+    ENABLE_PLUGINS="false" \
     # Steam App ID do V Rising Dedicated Server
     VRISING_APP_ID="1829350" \
     # Wine
@@ -213,8 +215,10 @@ RUN mkdir -p /data/server /data/saves /data/logs /data/wine /scripts
 # =============================================================================
 COPY scripts/entrypoint.sh /scripts/entrypoint.sh
 COPY scripts/load_emulators_env.sh /scripts/load_emulators_env.sh
+COPY scripts/setup_bepinex.sh /scripts/setup_bepinex.sh
 COPY config/ /scripts/config/
-RUN chmod +x /scripts/entrypoint.sh /scripts/load_emulators_env.sh
+COPY bepinex/ /scripts/bepinex/
+RUN chmod +x /scripts/*.sh
 
 # =============================================================================
 # Expor portas
@@ -229,8 +233,13 @@ VOLUME ["/data"]
 # =============================================================================
 # Healthcheck
 # =============================================================================
-HEALTHCHECK --interval=60s --timeout=10s --start-period=900s --retries=3 \
-    CMD nc -zu localhost 9876 || exit 1
+# Verifica se o processo VRisingServer.exe está rodando
+# - start-period: 15 minutos (tempo suficiente para download + inicialização)
+# - interval: 30 segundos
+# - retries: 3 (só marca unhealthy após 3 falhas consecutivas)
+# =============================================================================
+HEALTHCHECK --interval=30s --timeout=10s --start-period=900s --retries=3 \
+    CMD pgrep -f "VRisingServer.exe" > /dev/null || exit 1
 
 # =============================================================================
 # Entrypoint
