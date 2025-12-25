@@ -93,7 +93,7 @@ RUN dpkg --add-architecture armhf && \
     ca-certificates \
     && mkdir -p /etc/apt/keyrings \
     && wget -qO- https://ryanfortner.github.io/box86-debs/KEY.gpg | gpg --dearmor -o /etc/apt/keyrings/box86-debs-archive-keyring.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/box86-debs-archive-keyring.gpg] https://ryanfortner.github.io/box86-debs/debian ./" | tee /etc/apt/sources.list.d/box86.list \
+    && echo "deb [signed-by=/etc/apt/keyrings/box86-debs-archive-keyring.gpg] https://ryanfortner.github.io/box86-debs/ ./" | tee /etc/apt/sources.list.d/box86.list \
     && apt-get update && apt-get install -y --no-install-recommends \
     # Box86 (via repo RyanFortner)
     box86-generic-arm:armhf \
