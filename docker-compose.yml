@@ -1,17 +1,22 @@
 # =============================================================================
-# V Rising Dedicated Server - Docker Compose
+# V Rising Dedicated Server - Docker Compose (NTSync Edition)
 # =============================================================================
-# Para usar com EasyPanel:
-# 1. Faça push deste repositório para o GitHub
-# 2. No EasyPanel, crie um novo serviço do tipo "Docker"
-# 3. Aponte para o repositório e branch main
-# 4. Configure as variáveis de ambiente conforme necessário
+# Este compose tem suporte opcional a NTSync para melhor performance.
+#
+# Requisitos para NTSync:
+# 1. Host com kernel Linux 6.14+ (Ubuntu 25.04+ ou similar)
+# 2. Módulo ntsync carregado: sudo modprobe ntsync
+# 3. Descomentar a seção "devices" abaixo
+#
+# Sem NTSync, o servidor funciona normalmente com performance padrão.
 # =============================================================================
 
 services:
   vrising:
     build:
       context: .
+      # Para usar versão com NTSync, mude para:
+      # dockerfile: Dockerfile.ntsync
       dockerfile: Dockerfile
     container_name: vrising-server
     restart: unless-stopped
@@ -64,6 +69,28 @@ services:
       # Volume único para todos os dados (server, saves, wine, logs)
       - vrising-data:/data
 
+    # =========================================================================
+    # NTSYNC SUPPORT (Opcional)
+    # =========================================================================
+    # Descomente esta seção se seu host suportar NTSync.
+    #
+    # Requisitos:
+    # 1. Kernel Linux 6.14+ (Ubuntu 25.04+, Fedora 42+, etc)
+    # 2. Módulo ntsync carregado:
+    #    - Temporário: sudo modprobe ntsync
+    #    - Permanente: echo "ntsync" | sudo tee /etc/modules-load.d/ntsync.conf
+    # 3. Device /dev/ntsync deve existir
+    #
+    # Verificar se NTSync está disponível:
+    #    ls -la /dev/ntsync
+    #    lsmod | grep ntsync
+    #
+    # Sem NTSync, o servidor funciona normalmente.
+    # Com NTSync, você terá melhor performance e menor uso de CPU.
+    # =========================================================================
+    # devices:
+    #   - /dev/ntsync:/dev/ntsync
+
     # Recursos (ajuste conforme necessário)
     # EasyPanel gerencia isso automaticamente, mas você pode definir limites
     deploy:
@@ -80,6 +107,12 @@ services:
       timeout: 10s
       start_period: 900s
       retries: 3
+
+    # Grace period para shutdown limpo (autosave)
+    stop_grace_period: 30s
+
+    # Network mode bridge para compatibilidade
+    network_mode: bridge
 
 # Volumes nomeados para persistência
 volumes:

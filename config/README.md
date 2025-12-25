@@ -79,3 +79,29 @@ A dificuldade é definida no `ServerHostSettings.json` via variável `GAME_DIFFI
 
 - [Instruções Oficiais Stunlock](https://github.com/StunlockStudios/vrising-dedicated-server-instructions)
 - [Wiki V Rising](https://vrising.fandom.com/wiki/V_Rising_Wiki)
+
+---
+
+## 🔧 emulators.rc (Configurações de Emuladores)
+
+Este arquivo permite ajustar as configurações do Box64/FEX para otimizar compatibilidade e performance.
+
+### Localização
+- **Template**: `config/emulators.rc` (incluído no build)
+- **Runtime**: `/data/saves/Settings/emulators.rc` (persistente, editável)
+
+### Configurações Disponíveis
+
+```bash
+# Box64 - Compatibilidade vs Performance
+BOX64_DYNAREC_STRONGMEM=1  # 1 = mais compatível, 0 = mais rápido
+BOX64_DYNAREC_BIGBLOCK=0   # 0 = blocos menores/mais seguro, 1 = otimizado
+
+# FEX-Emu (alternativa ao Box64)
+FEX_PARANOIDTSO=true       # true = mais compatível
+```
+
+### Documentação Detalhada
+- [Box64 Usage Guide](https://github.com/ptitSeb/box64/blob/main/docs/USAGE.md)
+- [FEX-Emu Config](https://github.com/FEX-Emu/FEX/blob/main/FEXCore/Source/Interface/Config/Config.json.in)
+
