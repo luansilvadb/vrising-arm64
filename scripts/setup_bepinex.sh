@@ -27,13 +27,11 @@ SERVER_DIR="${SERVER_DIR:-/data/server}"
 BEPINEX_DIR="${SERVER_DIR}/BepInEx"
 BEPINEX_DEFAULTS="/scripts/bepinex"
 
-# URLs dos arquivos BepInEx (usando release do tsx-cloud que já é ARM64 friendly)
-# Você pode substituir por releases oficiais se preferir
-BEPINEX_VERSION="6.0.0-be.757"
+# URLs dos arquivos BepInEx
+# V Rising usa Unity IL2CPP, então precisamos da versão 6 (pre.2)
+# Nota: BepInEx 5.x NÃO funciona com IL2CPP games
+BEPINEX_VERSION="6.0.0-pre.2"
 BEPINEX_URL="https://github.com/BepInEx/BepInEx/releases/download/v${BEPINEX_VERSION}/BepInEx-Unity.IL2CPP-win-x64-${BEPINEX_VERSION}.zip"
-
-# Versão .NET para CoreCLR
-DOTNET_VERSION="8.0.0"
 
 setup_bepinex() {
     log_bepinex "=============================================="
