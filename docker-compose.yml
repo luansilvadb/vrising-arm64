@@ -23,7 +23,9 @@ services:
     # Isso permite NTSync funcionar automaticamente se disponível no host
     privileged: true
 
-    # NTSync device mapping (necessário mesmo com privileged em alguns casos)
+    # NTSync device mapping - HABILITADO (verificado no host: /dev/ntsync existe)
+    # Para verificar no host: ls -la /dev/ntsync
+    # Se der erro no docker compose, comente estas linhas
     devices:
       - /dev/ntsync:/dev/ntsync
 
