@@ -1,26 +1,18 @@
 #!/bin/bash
 # =============================================================================
-# V Rising Dedicated Server - Entrypoint Script (NTSync Edition)
-# =============================================================================
-# Suporta:
-# - NTSync para melhor performance (quando disponível)
-# - Configurações customizáveis de emuladores via emulators.rc
-# - winetricks para configuração de audio
+# V Rising Dedicated Server - Entrypoint Script (FAST VERSION)
 # =============================================================================
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-MAGENTA='\033[0;35m'
 NC='\033[0m'
 
 log_info() { echo -e "${BLUE}[INFO]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"; }
 log_success() { echo -e "${GREEN}[SUCCESS]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"; }
 log_warning() { echo -e "${YELLOW}[WARNING]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"; }
-log_ntsync() { echo -e "${MAGENTA}[NTSYNC]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"; }
 
 # =============================================================================
 # Variáveis
@@ -31,23 +23,18 @@ SAVES_DIR="${SAVES_DIR:-/data/saves}"
 SETTINGS_DIR="${SAVES_DIR}/Settings"
 VRISING_APP_ID="${VRISING_APP_ID:-1829350}"
 
-# Wine - Configuração simplificada (baseada em tsx-cloud)
+# Wine - DESABILITAR MONO E GECKO para acelerar
 export WINEPREFIX="${WINEPREFIX:-/data/wine}"
 export WINEARCH="win64"
 export WINEDEBUG="-all"
-# NOTA: WINEDLLOVERRIDES será configurado pelo setup_bepinex.sh se plugins estiverem habilitados
-# Por padrão, não definimos overrides aqui (tsx-cloud approach)
+# dnsapi=b força uso de builtin para evitar erro __res_query
+export WINEDLLOVERRIDES="mscoree=d;mshtml=d;dnsapi=b"
 export DISPLAY=":0"
 
-# Box64 settings (podem ser sobrescritos pelo emulators.rc)
-# Nota: Box86 não é mais necessário - usamos Wine WOW64
+# Box settings
+export BOX86_LOG=0
 export BOX64_LOG=0
-# Otimizações CRÍTICAS para Unity no Box64
-# BIGBLOCK=0 previne crashes em blocos JIT muito grandes (comum em C# Unity)
-export BOX64_DYNAREC_BIGBLOCK=0
-# FORCETHREADS=1 ajuda em alguns casos de deadlock
-# SCREENSHOT_WORKAROUND=1 pode ajudar se houver problemas gráficos headless
-
+export BOX86_NOBANNER=1
 export BOX64_NOBANNER=1
 export BOX64_LD_LIBRARY_PATH="/opt/wine/lib64:/opt/wine/lib"
 
@@ -62,73 +49,17 @@ LIST_ON_MASTER_SERVER="${LIST_ON_MASTER_SERVER:-false}"
 LIST_ON_EOS="${LIST_ON_EOS:-false}"
 GAME_MODE_TYPE="${GAME_MODE_TYPE:-PvP}"
 
-# NTSync - será detectado automaticamente
-NTSYNC_AVAILABLE="false"
-
 # =============================================================================
-# Funções Novas: NTSync e Emuladores
-# =============================================================================
-
-check_ntsync() {
-    log_ntsync "=============================================="
-    log_ntsync "Checking NTSYNC"
-    log_ntsync "=============================================="
-    log_ntsync "The NTSYNC module has been present in the Linux kernel since version 6.14 and is usually included only in the generic kernel versions."
-    log_ntsync "Kernel version on this machine is -- $(uname -r)"
-
-    /usr/bin/lsof /dev/ntsync
-    if /sbin/lsmod | grep -q ntsync; then
-      if /usr/bin/lsof /dev/ntsync > /dev/null 2>&1; then
-        log_success "NTSYNC Module is present in kernel, ntsync is running."
-      else
-        log_info "NTSYNC Module is present in kernel, but ntsync is NOT running. No problem — ntsync is not nessesary."
-      fi
-    else
-      log_info "NTSYNC Module is NOT present in kernel. No problem — ntsync is not nessesary."
-    fi
-}
-
-load_emulators_config() {
-    log_info "Carregando configurações de emuladores..."
-    
-    # Carregar script se existir
-    if [ -f "/scripts/load_emulators_env.sh" ]; then
-        source /scripts/load_emulators_env.sh
-    else
-        log_warning "Script de emuladores não encontrado"
-    fi
-}
-
-configure_bepinex() {
-    log_info "Configurando BepInEx/Plugins..."
-    
-    # Carregar script de setup do BepInEx
-    if [ -f "/scripts/setup_bepinex.sh" ]; then
-        source /scripts/setup_bepinex.sh
-        # A função configure_bepinex do script é exportada e sobrescreve esta
-        # Então precisamos renomear a chamada
-        setup_bepinex_if_enabled
-    else
-        log_warning "Script BepInEx não encontrado"
-    fi
-}
-
-# =============================================================================
-# Funções Originais
+# Funções
 # =============================================================================
 
 init_display() {
     log_info "Iniciando display virtual (Xvfb)..."
-    
-    # Limpar lock antigo
-    rm -f /tmp/.X0-lock 2>/dev/null || true
     pkill -9 Xvfb 2>/dev/null || true
     sleep 1
-    
     Xvfb :0 -screen 0 1024x768x24 &
     XVFB_PID=$!
     sleep 2
-    
     if kill -0 ${XVFB_PID} 2>/dev/null; then
         log_success "Display virtual iniciado (PID: ${XVFB_PID})"
         return 0
@@ -156,34 +87,25 @@ init_wine_fast() {
     mkdir -p "${WINEPREFIX}/drive_c/Program Files"
     mkdir -p "${WINEPREFIX}/drive_c/Program Files (x86)"
     
-    # Tentar inicializar Wine rapidamente (timeout de 60s)
+    # Tentar inicializar Wine rapidamente (timeout de 30s)
     log_info "Executando wineboot (timeout 60s)..."
-    timeout 60 wineboot --init 2>&1 &
+    timeout 60 box64 /opt/wine/bin/wineboot --init 2>&1 &
     WINEBOOT_PID=$!
     
-    # Aguardar um pouco
+    # Aguardar um pouco e depois matar se ainda estiver rodando
     sleep 10
     
     # Verificar se criou os arquivos básicos
     if [ -d "${WINEPREFIX}/drive_c/windows" ]; then
         log_success "Wine prefix básico criado!"
         # Matar processos Wine extras se ainda estiverem rodando
-        wineserver -k 2>/dev/null || true
+        box64 /opt/wine/bin/wineserver -k 2>/dev/null || true
         sleep 2
         return 0
     fi
     
     log_warning "Continuando sem Wine prefix completo..."
     return 0
-}
-
-configure_wine_audio() {
-    log_info "Configurando Wine audio (desabilitado para servidor)..."
-    
-    # Usar winetricks se disponível
-    if command -v winetricks &>/dev/null; then
-        winetricks sound=disabled 2>/dev/null || log_warning "winetricks sound=disabled falhou"
-    fi
 }
 
 install_or_update_server() {
@@ -203,7 +125,7 @@ install_or_update_server() {
         needs_download=true
     fi
     
-    log_info "Executando SteamCMD via Box64..."
+    log_info "Executando SteamCMD via Box86..."
     if [ "$needs_download" = "true" ]; then
         log_info "Download de ~2GB - isso pode demorar 5-15 minutos..."
     fi
@@ -211,7 +133,7 @@ install_or_update_server() {
     cd "${STEAMCMD_DIR}"
     
     local attempt=1
-    local max_attempts=3
+    local max_attempts=3  # Reduzido: SteamCMD já está pré-inicializado no build
     
     while [ $attempt -le $max_attempts ]; do
         if [ $attempt -le 2 ]; then
@@ -220,10 +142,11 @@ install_or_update_server() {
             log_info "Tentativa ${attempt} de ${max_attempts}..."
         fi
         
-        # Usar wrapper steamcmd (via Box64)
-        steamcmd \
-            +@sSteamCmdForcePlatformType windows \
+        # Mostrar toda a saída do SteamCMD para debug
+        # Ordem correta: force_install_dir -> login -> app_update -> quit
+        box86 /opt/steamcmd/linux32/steamcmd \
             +force_install_dir "${SERVER_DIR}" \
+            +@sSteamCmdForcePlatformType windows \
             +login anonymous \
             +app_update ${VRISING_APP_ID} validate \
             +quit
@@ -233,6 +156,7 @@ install_or_update_server() {
             return 0
         fi
         
+        # Mensagens mais claras sobre o que está acontecendo
         if [ $attempt -le 2 ]; then
             log_info "SteamCMD atualizando-se, continuando..."
         else
@@ -263,6 +187,7 @@ configure_server() {
     # =========================================================================
     log_info "Atualizando ServerHostSettings.json..."
     
+    # Usar template como base e substituir valores com jq
     if [ -f "${CONFIG_TEMPLATES}/ServerHostSettings.json" ]; then
         jq --arg name "${SERVER_NAME}" \
            --arg desc "${SERVER_DESCRIPTION}" \
@@ -337,26 +262,32 @@ start_server() {
     log_info "Game Port: ${GAME_PORT} | Query Port: ${QUERY_PORT}"
     log_info "Max Users: ${MAX_USERS} | Game Mode: ${GAME_MODE_TYPE}"
     log_info "Difficulty: ${GAME_DIFFICULTY_PRESET:-Difficulty_Brutal} 💀"
-    # log_info "NTSync: ${NTSYNC_AVAILABLE}"
     log_info "=============================================="
     
     cd "${SERVER_DIR}"
     
+    # Verificar se os arquivos existem
     if [ ! -f "${SERVER_DIR}/VRisingServer.exe" ]; then
         log_error "VRisingServer.exe não encontrado!"
         exit 1
     fi
     
-    if ! command -v wine &>/dev/null; then
-        log_error "wine não encontrado no PATH!"
+    if [ ! -f "/opt/wine/bin/wine" ]; then
+        log_error "wine não encontrado em /opt/wine/bin/"
+        ls -la /opt/wine/bin/ 2>/dev/null || log_error "Diretório /opt/wine/bin/ não existe"
         exit 1
     fi
     
-    log_info "Executando VRisingServer.exe via Wine (staging-tkg)..."
+    log_info "Executando VRisingServer.exe via Box64 + Wine..."
+    log_info "Wine: /opt/wine/bin/wine"
     log_info "Server: ${SERVER_DIR}/VRisingServer.exe"
     
-    # Executar via wrapper wine (como tsx-cloud faz)
-    exec wine "${SERVER_DIR}/VRisingServer.exe" \
+    # Adicionar /opt/wine/bin ao PATH para Box64 encontrar
+    export PATH="/opt/wine/bin:${PATH}"
+    export BOX64_PATH="/opt/wine/bin:/usr/local/bin:/usr/bin"
+    
+    # Executar via box64 com caminho completo (usar wine, não wine64 - WOW64 é unificado)
+    exec /usr/local/bin/box64 /opt/wine/bin/wine "${SERVER_DIR}/VRisingServer.exe" \
         -persistentDataPath "${SAVES_DIR}" \
         -serverName "${SERVER_NAME}" \
         -saveName "${WORLD_NAME}" \
@@ -365,21 +296,6 @@ start_server() {
 
 shutdown_server() {
     log_warning "Shutdown..."
-    
-    # Tentar shutdown graceful do servidor
-    local PID=$(pgrep -f "VRisingServer.exe" | sort -nr | head -n 1)
-    if [ -n "$PID" ]; then
-        log_info "Enviando SIGINT para servidor (PID: $PID)..."
-        kill -SIGINT "$PID" 2>/dev/null || true
-        # Aguardar até 30 segundos
-        for i in $(seq 1 30); do
-            if ! kill -0 "$PID" 2>/dev/null; then
-                break
-            fi
-            sleep 1
-        done
-    fi
-    
     box64 /opt/wine/bin/wineserver -k 2>/dev/null || true
     pkill -9 Xvfb 2>/dev/null || true
     exit 0
@@ -392,24 +308,16 @@ trap shutdown_server SIGTERM SIGINT SIGHUP
 # =============================================================================
 
 log_info "=============================================="
-log_info " V Rising Dedicated Server - ARM64 (NTSync)"
+log_info " V Rising Dedicated Server - ARM64 (FAST)"
 log_info "=============================================="
 log_info "Server: ${SERVER_DIR} | Saves: ${SAVES_DIR}"
 log_info "=============================================="
 
-# Configurar timezone
 ln -sf /usr/share/zoneinfo/${TZ} /etc/localtime 2>/dev/null || true
+mkdir -p "${SERVER_DIR}" "${SAVES_DIR}" "${WINEPREFIX}" /data/logs
 
-# Criar diretórios necessários
-mkdir -p "${SERVER_DIR}" "${SAVES_DIR}" "${WINEPREFIX}" /data/logs "${SETTINGS_DIR}"
-
-# Pipeline de inicialização
-load_emulators_config           # Carregar configs Box64/FEX
-init_display || exit 1          # Iniciar Xvfb
-configure_wine_audio            # Desabilitar audio (winetricks antes do wineboot)
-init_wine_fast                  # Inicializar Wine prefix
-check_ntsync                    # Verificar suporte NTSync
-install_or_update_server || exit 1  # Baixar/atualizar servidor
-configure_bepinex               # Configurar BepInEx/Plugins
-configure_server                # Aplicar configurações
-start_server                    # Iniciar servidor
+init_display || exit 1
+init_wine_fast
+install_or_update_server || exit 1
+configure_server
+start_server

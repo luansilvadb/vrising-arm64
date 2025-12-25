@@ -1,14 +1,11 @@
 # =============================================================================
-# V Rising Dedicated Server - Docker Compose (NTSync Edition)
+# V Rising Dedicated Server - Docker Compose
 # =============================================================================
-# NTSync AUTOMÁTICO via privileged mode.
-#
-# O container detecta automaticamente se o host tem NTSync disponível.
-# Se tiver: +50-100% FPS | Se não tiver: funciona normalmente
-#
-# Único requisito no HOST (se quiser NTSync):
-#   sudo modprobe ntsync
-#   echo "ntsync" | sudo tee /etc/modules-load.d/ntsync.conf
+# Para usar com EasyPanel:
+# 1. Faça push deste repositório para o GitHub
+# 2. No EasyPanel, crie um novo serviço do tipo "Docker"
+# 3. Aponte para o repositório e branch main
+# 4. Configure as variáveis de ambiente conforme necessário
 # =============================================================================
 
 services:
@@ -18,16 +15,6 @@ services:
       dockerfile: Dockerfile
     container_name: vrising-server
     restart: unless-stopped
-
-    # Modo privilegiado para acesso automático a /dev/ntsync
-    # Isso permite NTSync funcionar automaticamente se disponível no host
-    privileged: true
-
-    # NTSync device mapping - HABILITADO (verificado no host: /dev/ntsync existe)
-    # Para verificar no host: ls -la /dev/ntsync
-    # Se der erro no docker compose, comente estas linhas
-    devices:
-      - /dev/ntsync:/dev/ntsync
 
     # Variáveis de ambiente para configuração
     environment:
@@ -58,9 +45,6 @@ services:
       # Atualização automática no restart
       - AUTO_UPDATE=${AUTO_UPDATE:-true}
 
-      # BepInEx/Plugins (true = habilita mods)
-      - ENABLE_PLUGINS=${ENABLE_PLUGINS:-false}
-
       # RCON (acesso admin remoto)
       - RCON_ENABLED=${RCON_ENABLED:-true}
       - RCON_PORT=${RCON_PORT:-25575}
@@ -80,21 +64,6 @@ services:
       # Volume único para todos os dados (server, saves, wine, logs)
       - vrising-data:/data
 
-    # =========================================================================
-    # NTSYNC SUPPORT (Automático via privileged mode)
-    # =========================================================================
-    # Com privileged: true, o container tem acesso automático a /dev/ntsync
-    # se estiver disponível no host. Não precisa configurar nada!
-    #
-    # Requisitos no HOST:
-    # 1. Kernel Linux 6.14+ (Ubuntu 25.04+)
-    # 2. Módulo ntsync carregado:
-    #    sudo modprobe ntsync
-    #    echo "ntsync" | sudo tee /etc/modules-load.d/ntsync.conf
-    #
-    # O entrypoint.sh detecta automaticamente se NTSync está disponível.
-    # =========================================================================
-
     # Recursos (ajuste conforme necessário)
     # EasyPanel gerencia isso automaticamente, mas você pode definir limites
     deploy:
@@ -111,12 +80,6 @@ services:
       timeout: 10s
       start_period: 900s
       retries: 3
-
-    # Grace period para shutdown limpo (autosave)
-    stop_grace_period: 30s
-
-    # Network mode bridge para compatibilidade
-    network_mode: bridge
 
 # Volumes nomeados para persistência
 volumes:
