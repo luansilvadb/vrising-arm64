@@ -78,6 +78,11 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LC_ALL=en_US.UTF-8
 
 # =============================================================================
+# Habilitar multiarch armhf (necessário para Box86)
+# =============================================================================
+RUN dpkg --add-architecture armhf
+
+# =============================================================================
 # Instalação de dependências
 # =============================================================================
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -120,6 +125,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # NTSync userspace tools (para verificação)
     lsof \
     kmod \
+    # Bibliotecas 32-bit para Box86 (armhf)
+    libc6:armhf \
+    libstdc++6:armhf \
     && rm -rf /var/lib/apt/lists/* \
     && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen 2>/dev/null || true \
     && locale-gen 2>/dev/null || true
@@ -127,16 +135,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # =============================================================================
 # Instalar Box86 v0.3.8 (para SteamCMD 32-bit)
 # =============================================================================
+# Box86 em ARM64 precisa de cross-compiler armhf
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc-arm-linux-gnueabihf \
+    libc6-dev-armhf-cross \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN cd /tmp && \
     git clone --depth 1 --branch v0.3.8 https://github.com/ptitSeb/box86.git && \
     cd box86 && \
     mkdir build && cd build && \
-    # Usar target genérico para ARM64 rodando binários 32-bit
-    cmake .. -DARM_DYNAREC=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
+    # Cross-compilar Box86 para ARM64 host rodando binários armhf
+    cmake .. -DARM64=ON -DARM_DYNAREC=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
     make -j$(nproc) && \
     make install && \
     cd / && rm -rf /tmp/box86 && \
-    # Verificar instalação (ignorar erro se binário não for executável no host)
+    # Verificar instalação
     box86 --version 2>/dev/null || echo "Box86 instalado (verificação skipped)"
 
 # =============================================================================

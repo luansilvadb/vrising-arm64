@@ -1,14 +1,14 @@
 # =============================================================================
 # V Rising Dedicated Server - Docker Compose (NTSync Edition)
 # =============================================================================
-# NTSync HABILITADO por padrão para melhor performance (+50-100% FPS).
+# NTSync AUTOMÁTICO via privileged mode.
 #
-# ⚠️ Requisitos no HOST para NTSync funcionar:
-# 1. Kernel Linux 6.14+ (Ubuntu 25.04+ ou similar)
-# 2. Módulo ntsync carregado: sudo modprobe ntsync
-# 3. Device /dev/ntsync deve existir
+# O container detecta automaticamente se o host tem NTSync disponível.
+# Se tiver: +50-100% FPS | Se não tiver: funciona normalmente
 #
-# Se o host NÃO tiver NTSync, comente as linhas 84-85 ou o container falhará.
+# Único requisito no HOST (se quiser NTSync):
+#   sudo modprobe ntsync
+#   echo "ntsync" | sudo tee /etc/modules-load.d/ntsync.conf
 # =============================================================================
 
 services:
@@ -18,6 +18,10 @@ services:
       dockerfile: Dockerfile
     container_name: vrising-server
     restart: unless-stopped
+
+    # Modo privilegiado para acesso automático a /dev/ntsync
+    # Isso permite NTSync funcionar automaticamente se disponível no host
+    privileged: true
 
     # Variáveis de ambiente para configuração
     environment:
@@ -68,21 +72,19 @@ services:
       - vrising-data:/data
 
     # =========================================================================
-    # NTSYNC SUPPORT (Habilitado)
+    # NTSYNC SUPPORT (Automático via privileged mode)
     # =========================================================================
-    # NTSync melhora performance em +50-100% quando disponível.
+    # Com privileged: true, o container tem acesso automático a /dev/ntsync
+    # se estiver disponível no host. Não precisa configurar nada!
     #
     # Requisitos no HOST:
-    # 1. Kernel Linux 6.14+ (Ubuntu 25.04+, Fedora 42+, etc)
+    # 1. Kernel Linux 6.14+ (Ubuntu 25.04+)
     # 2. Módulo ntsync carregado:
-    #    - Temporário: sudo modprobe ntsync
-    #    - Permanente: echo "ntsync" | sudo tee /etc/modules-load.d/ntsync.conf
-    # 3. Device /dev/ntsync deve existir
+    #    sudo modprobe ntsync
+    #    echo "ntsync" | sudo tee /etc/modules-load.d/ntsync.conf
     #
-    # ⚠️ Se o host NÃO tiver NTSync, comente as linhas abaixo ou o container falhará
+    # O entrypoint.sh detecta automaticamente se NTSync está disponível.
     # =========================================================================
-    devices:
-      - /dev/ntsync:/dev/ntsync
 
     # Recursos (ajuste conforme necessário)
     # EasyPanel gerencia isso automaticamente, mas você pode definir limites
