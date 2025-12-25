@@ -178,6 +178,13 @@ RUN mkdir -p /opt/bepinex && \
     echo "BepInExPack V Rising instalado em /opt/bepinex"
 
 # =============================================================================
+# Copiar interop pré-gerado (se disponível)
+# Isso evita a geração que trava no ARM64/Box64
+# Gerar via: GitHub Actions → generate-interop.yml
+# =============================================================================
+COPY bepinex/prebuilt/ /opt/bepinex/prebuilt/
+
+# =============================================================================
 # Criar diretórios necessários
 # =============================================================================
 RUN mkdir -p /data/server /data/saves /data/logs /data/wine /data/mods /scripts

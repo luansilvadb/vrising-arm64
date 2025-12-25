@@ -447,15 +447,44 @@ install_bepinex() {
         log_info "  Dica: Coloque arquivos .dll na pasta mods/ e reinicie"
     fi
     
-    # Verificar se interop já foi gerado (acelera reinicializações)
+    # ==========================================================================
+    # CRITICAL: Usar interop pré-gerado para ARM64
+    # A geração de interop trava no Box64 devido ao Parallel.ForEach
+    # Solução: Usar assemblies pré-gerados em x86_64 via GitHub Actions
+    # ==========================================================================
+    
+    PREBUILT_INTEROP="/opt/bepinex/prebuilt/interop"
+    
     if [ -d "${SERVER_DIR}/BepInEx/interop" ] && [ "$(ls -A ${SERVER_DIR}/BepInEx/interop 2>/dev/null)" ]; then
+        # Interop já existe - usar existente
         local interop_count=$(ls -1 "${SERVER_DIR}/BepInEx/interop/" 2>/dev/null | wc -l)
         log_success "Cache de interop existente (${interop_count} assemblies)"
-        log_info "Inicialização será mais rápida!"
+        log_info "Inicialização será rápida!"
+        
+    elif [ -d "${PREBUILT_INTEROP}" ] && [ "$(ls -A ${PREBUILT_INTEROP} 2>/dev/null)" ]; then
+        # Usar interop pré-gerado
+        log_info "Instalando interop pré-gerado (x86_64 → ARM64)..."
+        mkdir -p "${SERVER_DIR}/BepInEx/interop"
+        cp -r "${PREBUILT_INTEROP}"/* "${SERVER_DIR}/BepInEx/interop/"
+        
+        local interop_count=$(ls -1 "${SERVER_DIR}/BepInEx/interop/" 2>/dev/null | wc -l)
+        log_success "Interop pré-gerado instalado! (${interop_count} assemblies)"
+        log_info "Geração no ARM64 evitada - inicialização será rápida!"
+        
     else
-        log_warning "Cache de interop NÃO encontrado"
-        log_warning "Primeira inicialização - pode demorar 5-15 min (ARM64)"
-        log_warning "BepInEx irá gerar assemblies de interoperabilidade..."
+        # Nenhum interop disponível - vai tentar gerar (pode travar no ARM64)
+        log_warning "=========================================="
+        log_warning "ATENÇÃO: Interop pré-gerado NÃO encontrado!"
+        log_warning "=========================================="
+        log_warning "O BepInEx tentará gerar assemblies de interop."
+        log_warning "Isso pode TRAVAR no ARM64 devido ao Box64."
+        log_warning ""
+        log_warning "Solução recomendada:"
+        log_warning "  1. Rodar GitHub Actions: generate-interop.yml"
+        log_warning "  2. Baixar artifact e colocar em bepinex/prebuilt/interop/"
+        log_warning "  3. Rebuildar a imagem Docker"
+        log_warning ""
+        log_warning "Tentando mesmo assim... (timeout 15min)"
     fi
     
     log_success "BepInEx configurado!"
