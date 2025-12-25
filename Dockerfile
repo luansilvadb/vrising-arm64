@@ -14,7 +14,8 @@
 # ARGs Globais
 # -----------------------------------------------------------------------------
 # Usamos 'sid-slim' pois contém box64 nos repositórios oficiais
-ARG DEBIAN_VERSION=sid-slim
+ARG BUILDER_VERSION=bookworm-slim
+ARG RUNTIME_VERSION=sid-slim
 ARG BOX86_VERSION=v0.3.6
 ARG WINE_VERSION=11.0-rc3
 
@@ -23,7 +24,9 @@ ARG WINE_VERSION=11.0-rc3
 # =============================================================================
 # Box86 não está disponível em armhf no Sid, então compilamos.
 # -----------------------------------------------------------------------------
-FROM debian:${DEBIAN_VERSION} AS box86-builder
+# Usamos 'bookworm-slim' (Stable) para o builder para maximizar o cache do Docker.
+# O cache só será invalidado se a versão do Box86 mudar, não quando o 'sid' atualizar.
+FROM debian:${BUILDER_VERSION} AS box86-builder
 
 ARG BOX86_VERSION
 
@@ -47,6 +50,7 @@ RUN cd /tmp && \
     cmake .. \
     -DARM64=1 \
     -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_FLAGS="-D_FILE_OFFSET_BITS=64" \
     -DNOGIT=1 && \
     make -j$(nproc) && \
     make install DESTDIR=/box86-install && \
@@ -55,7 +59,7 @@ RUN cd /tmp && \
 # =============================================================================
 # STAGE 2: Download e preparação do Wine
 # =============================================================================
-FROM debian:${DEBIAN_VERSION} AS wine-prep
+FROM debian:${BUILDER_VERSION} AS wine-prep
 
 ARG WINE_VERSION
 
@@ -78,7 +82,7 @@ RUN mkdir -p /wine && \
 # =============================================================================
 # STAGE 3: Imagem de Runtime (FINAL)
 # =============================================================================
-FROM debian:${DEBIAN_VERSION} AS runtime
+FROM debian:${RUNTIME_VERSION} AS runtime
 
 LABEL maintainer="VRising ARM64 Server"
 LABEL description="V Rising Dedicated Server for ARM64 using Box64 (Debian Sid) + Box86"

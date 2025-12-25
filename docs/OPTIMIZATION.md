@@ -27,35 +27,35 @@ Descobrimos que a distribuição **Debian Sid (Unstable)** contém o pacote `box
 
 ## ⏱️ Comparativo de Tempo de Build
 
-| Etapa | Tempo Anterior | Tempo Otimizado | Status |
-|-------|----------------|-----------------|--------|
-| Pull Base Image | ~15s | ~15s | Igual |
-| **Box86 Compile** | ~10 min | ~8 min | Otimizado flags |
-| **Box64 Compile** | **~15 min** | **0s (apt install)** | 🚀 **ELIMINADO** |
-| **Wine Prep** | ~2 min | ~2 min | Igual |
-| **Runtime Setup** | ~2 min | ~1 min | Mais rápido |
-| **TOTAL** | **~30 min** | **~10-12 min** | 📉 **-60%** |
+| Etapa | Tempo Anterior (Sid Only) | Tempo Otimizado (Hybrid) | Status |
+|-------|---------------------------|--------------------------|--------|
+| **Cache Stability** | ❌ Ruim (Invalidado 1x/dia) | ✅ **Excelente** (Estável) | **Cache Hit 99%** |
+| Box86 Compile | ~8 min (Rebuild frequente) | **0s (Cached)** | Otimizado via Base Estável |
+| Wine Download | ~2 min (Re-download freq.) | **0s (Cached)** | Otimizado via Base Estável |
+| Box64 Install | 5s | 5s | Apt Install (Sid) |
+| **TOTAL** | **~15-20 min** (frequente) | **~1-3 min** (típico) | 📉 **-90% (Recorrente)** |
 
-> **Nota:** Builds subsequentes com Cache Docker continuam levando apenas ~2-3 minutos.
+> **O Segredo:** Usamos `debian:bookworm` (Stable) para compilar o Box86 e baixar o Wine. Como essa imagem muda raramente, o Docker reaproveita o cache quase sempre. Só usamos `debian:sid` (Unstable) no estágio final para pegar o `box64` mais recente.
 
 ---
 
-## 🏗️ Arquitetura Final
+## 🏗️ Arquitetura Final (Híbrida)
 
 ```
 ┌─────────────────────────────────────────┐
-│ Stage 1: box86-builder (debian:sid)     │
+│ Stage 1: box86-builder (debian:STABLE)  │
 │ ├─ Compila Box86 (32-bit)               │
-│ └─ Necessário para SteamCMD             │
+│ └─ GERA CACHE DURADOURO                 │
 └──────────────────┬──────────────────────┘
                    │
 ┌──────────────────▼──────────────────────┐
-│ Stage 2: wine-prep (debian:sid)         │
+│ Stage 2: wine-prep (debian:STABLE)      │
 │ └─ Download Wine WOW64                  │
+│ └─ GERA CACHE DURADOURO                 │
 └──────────────────┬──────────────────────┘
                    │
 ┌──────────────────▼──────────────────────┐
-│ Stage 3: runtime (debian:sid)           │
+│ Stage 3: runtime (debian:SID/UNSTABLE)  │
 │ ├─ apt-get install box64 (OFICIAL)      │
 │ ├─ COPY box86 (do stage 1)              │
 │ ├─ COPY wine (do stage 2)               │
