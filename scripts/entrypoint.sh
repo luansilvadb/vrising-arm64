@@ -23,19 +23,19 @@ SAVES_DIR="${SAVES_DIR:-/data/saves}"
 SETTINGS_DIR="${SAVES_DIR}/Settings"
 VRISING_APP_ID="${VRISING_APP_ID:-1829350}"
 
-# Wine - DESABILITAR MONO E GECKO para acelerar
+# Wine - DEBUG ATIVADO PARA DIAGNOSTICO
 export WINEPREFIX="${WINEPREFIX:-/data/wine}"
 export WINEARCH="win64"
-export WINEDEBUG="-all"
+export WINEDEBUG="err+all"
 # dnsapi=b força uso de builtin para evitar erro __res_query
 export WINEDLLOVERRIDES="mscoree=d;mshtml=d;dnsapi=b"
 export DISPLAY=":0"
 
 # Box settings
-export BOX86_LOG=0
-export BOX64_LOG=0
-export BOX86_NOBANNER=1
-export BOX64_NOBANNER=1
+export BOX86_LOG=1
+export BOX64_LOG=1
+# export BOX86_NOBANNER=1
+# export BOX64_NOBANNER=1
 export BOX64_LD_LIBRARY_PATH="/opt/wine/lib/wine/x86_64-unix:/opt/wine/lib"
 
 # Configurações do servidor
