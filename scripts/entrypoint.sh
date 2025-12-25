@@ -317,6 +317,13 @@ install_bepinex() {
         cp "${BEPINEX_SOURCE}/winhttp.dll" "${SERVER_DIR}/"
     fi
     
+    # CRITICAL: Copiar winhttp.dll para Wine prefix system32
+    # Isso é necessário porque Wine procura DLLs no system32 antes do diretório do exe
+    if [ -d "${WINEPREFIX}/drive_c/windows/system32" ]; then
+        log_info "Copiando winhttp.dll para Wine system32 (fix ARM64)..."
+        cp "${BEPINEX_SOURCE}/winhttp.dll" "${WINEPREFIX}/drive_c/windows/system32/winhttp.dll"
+    fi
+    
     # Copiar doorstop_config.ini
     if [ ! -f "${SERVER_DIR}/doorstop_config.ini" ]; then
         log_info "Copiando doorstop_config.ini..."
