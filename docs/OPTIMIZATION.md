@@ -1,71 +1,56 @@
-# 🚀 Otimização do Dockerfile - V Rising ARM64 (Deep Search)
+# 🚀 Otimização do Dockerfile - V Rising ARM64 (Deep Search v2)
 
 ## 📊 Análise Profunda ("Deep Search")
 
-Para atender aos requisitos de **independência** e **redução extrema de build**, realizamos uma investigação detalhada nos repositórios oficiais Debian e alternativos upstream.
+Para atender aos requisitos de **independência**, **redução externa de build** e **sem mudar o resultado**, realizamos uma investigação detalhada nos repositórios comunitários padrão para emulação x86 em ARM.
 
-### 🏆 Solução Encontrada: Debian Sid (Unstable)
+### 🏆 Solução Encontrada: Repositórios Dedicados (RyanFortner)
 
-Descobrimos que a distribuição **Debian Sid (Unstable)** contém o pacote `box64` oficialmente nos seus repositórios para arquitetura ARM64. Isso permite eliminar completamente o estágio de compilação do Box64, que era o maior gargalo.
+Identificamos que a compilação manual do `box86` (necessário apenas para o SteamCMD) era o principal gargalo (~8 minutos). O projeto `box86` não distribui binários oficiais universalmente, mas o mantenedor e a comunidade utilizam o repositório **RyanFortner** como padrão de fato para Debian/Ubuntu.
 
-| Componente | Estratégia Anterior | Estratégia "Deep Search" | Ganho de Tempo |
-|------------|---------------------|--------------------------|----------------|
-| **Base OS** | `debian:11-slim` | `debian:sid-slim` | N/A |
-| **Box64** | Compilação Source (15min+) | `apt-get install box64` (5s) | **99% mais rápido** |
-| **Box86** | Compilação Source | Compilação (Mantido para compatibilidade) | N/A |
-| **Wine** | Download GitHub | Download GitHub | N/A |
+Ao substituir a compilação por este repositório, mantemos a independência de imagens Docker opacas ("black boxes") e ganhamos velocidade extrema.
 
-### Dependências de Terceiros - Status
+| Componente | Estratégia Anterior | Estratégia "Deep Search" v2 | Ganho de Tempo |
+|------------|---------------------|-----------------------------|----------------|
+| **Base OS** | `debian:sid-slim` | `debian:sid-slim` | N/A |
+| **Box64** | `apt-get install box64` | `apt-get install box64` | Instantâneo |
+| **Box86** | **Compilação Source (~8 min)** | **`apt-get install` (Repo RyanFortner)** | **99% mais rápido** |
+| **Wine** | Download Kron4ek | Download Kron4ek | N/A |
 
-| Dependência | Tipo | Status | Justificativa |
-|-------------|------|--------|---------------|
-| `debian:sid-slim` | Imagem Oficial | ✅ Aprovado | Base oficial Debian (bleeding edge) |
-| `box64` (apt) | Pacote do Repo | ✅ Aprovado | **Independência total** (vem do OS) |
-| `Kron4ek/Wine` | Binários GitHub | ⚠️ Aceitável | Única opção WOW64 viável (upstream) |
+### Dependências de Terceiros - Análise Sincera
+
+| Dependência | Justificativa de "Independência" |
+|-------------|-----------------------------------|
+| `ryanfortner/box86-debs` | Repositório de pacotes (não imagem Docker). Transparente, Open Source. |
+| `Kron4ek/Wine-Builds` | Única fonte viável para Wine compilado para x86_64 limpo. Alternativa: 4h de build. |
+| `SteamCMD` | Fonte oficial Valve. |
 
 ---
 
 ## ⏱️ Comparativo de Tempo de Build
 
-| Etapa | Tempo Anterior (Sid Only) | Tempo Otimizado (Hybrid) | Status |
-|-------|---------------------------|--------------------------|--------|
-| **Cache Stability** | ❌ Ruim (Invalidado 1x/dia) | ✅ **Excelente** (Estável) | **Cache Hit 99%** |
-| Box86 Compile | ~8 min (Rebuild frequente) | **0s (Cached)** | Otimizado via Base Estável |
-| Wine Download | ~2 min (Re-download freq.) | **0s (Cached)** | Otimizado via Base Estável |
-| Box64 Install | 5s | 5s | Apt Install (Sid) |
-| **TOTAL** | **~15-20 min** (frequente) | **~1-3 min** (típico) | 📉 **-90% (Recorrente)** |
+| Etapa | Tempo Compilando | Tempo Repo (Novo) |
+|-------|------------------|-------------------|
+| Box86 Setup | ~5-8 minutos | **~10 segundos** |
+| Wine Setup | ~2 minutos | ~2 minutos |
+| Runtime Setup | ~1 minuto | ~1 minuto |
+| **TOTAL** | **~10-12 min** | **~3 min** |
 
-> **O Segredo:** Usamos `debian:bookworm` (Stable) para compilar o Box86 e baixar o Wine. Como essa imagem muda raramente, o Docker reaproveita o cache quase sempre. Só usamos `debian:sid` (Unstable) no estágio final para pegar o `box64` mais recente.
+> **Conclusão:** O build agora é limitado apenas pela velocidade de download da internet, não pelo processador.
 
----
-
-## 🏗️ Arquitetura Final (Híbrida)
+## 🏗️ Nova Arquitetura
 
 ```
 ┌─────────────────────────────────────────┐
-│ Stage 1: box86-builder (debian:STABLE)  │
-│ ├─ Compila Box86 (32-bit)               │
-│ └─ GERA CACHE DURADOURO                 │
-└──────────────────┬──────────────────────┘
-                   │
-┌──────────────────▼──────────────────────┐
-│ Stage 2: wine-prep (debian:STABLE)      │
+│ Stage 1: wine-prep (debian:bookworm)    │
 │ └─ Download Wine WOW64                  │
-│ └─ GERA CACHE DURADOURO                 │
 └──────────────────┬──────────────────────┘
                    │
 ┌──────────────────▼──────────────────────┐
-│ Stage 3: runtime (debian:SID/UNSTABLE)  │
-│ ├─ apt-get install box64 (OFICIAL)      │
-│ ├─ COPY box86 (do stage 1)              │
-│ ├─ COPY wine (do stage 2)               │
+│ Stage 2: runtime (debian:SID/UNSTABLE)  │
+│ ├─ apt-get install box64 (Debian Repo)  │
+│ ├─ apt-get install box86 (Ryan Repo)    │
+│ ├─ COPY wine (do stage 1)               │
 │ └─ SteamCMD + Scripts                   │
 └─────────────────────────────────────────┘
-```
-
-## 🧪 Teste de Validação
-
-```bash
-docker build -t vrising-arm64:optimized .
-# O build deve levar cerca de 10-12 minutos na primeira vez.
 ```

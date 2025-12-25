@@ -11,50 +11,7 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# ARGs Globais
-# -----------------------------------------------------------------------------
-# Usamos 'sid-slim' pois contém box64 nos repositórios oficiais
-ARG BUILDER_VERSION=bookworm-slim
-ARG RUNTIME_VERSION=sid-slim
-ARG BOX86_VERSION=v0.3.6
-ARG WINE_VERSION=11.0-rc3
 
-# =============================================================================
-# STAGE 1: Compilação do Box86 (32-bit emulator)
-# =============================================================================
-# Box86 não está disponível em armhf no Sid, então compilamos.
-# -----------------------------------------------------------------------------
-# Usamos 'bookworm-slim' (Stable) para o builder para maximizar o cache do Docker.
-# O cache só será invalidado se a versão do Box86 mudar, não quando o 'sid' atualizar.
-FROM debian:${BUILDER_VERSION} AS box86-builder
-
-ARG BOX86_VERSION
-
-# Habilitar multiarch armhf para cross-compilação
-RUN dpkg --add-architecture armhf && \
-    apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    cmake \
-    build-essential \
-    gcc-arm-linux-gnueabihf \
-    libc6-dev-armhf-cross \
-    ca-certificates \
-    python3 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Compilar Box86
-RUN cd /tmp && \
-    git clone --depth 1 --branch ${BOX86_VERSION} https://github.com/ptitSeb/box86.git && \
-    cd box86 && \
-    mkdir build && cd build && \
-    cmake .. \
-    -DARM64=1 \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_C_FLAGS="-D_FILE_OFFSET_BITS=64" \
-    -DNOGIT=1 && \
-    make -j$(nproc) && \
-    make install DESTDIR=/box86-install && \
-    rm -rf /tmp/box86
 
 # =============================================================================
 # STAGE 2: Download e preparação do Wine
@@ -121,17 +78,25 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LC_ALL="en_US.UTF-8"
 
 # -----------------------------------------------------------------------------
-# Instalar Dependências (Box64 do Repo Oficial + Runtime)
+# Instalar Dependências (Box64 do Repo Oficial + Box86 do RyanFortner)
 # -----------------------------------------------------------------------------
 # Debian Sid contém box64 nos repositórios oficiais!
 RUN dpkg --add-architecture armhf && \
     apt-get update && apt-get install -y --no-install-recommends \
-    # Box64 Oficial
+    # Setup para adicionar repo do RyanFortner (Box86)
+    wget \
+    gnupg \
+    ca-certificates \
+    && mkdir -p /etc/apt/keyrings \
+    && wget -qO- https://ryanfortner.github.io/box86-debs/KEY.gpg | gpg --dearmor -o /etc/apt/keyrings/box86-debs-archive-keyring.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/box86-debs-archive-keyring.gpg] https://ryanfortner.github.io/box86-debs/debian ./box86.list" | tee /etc/apt/sources.list.d/box86.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    # Box86 (via repo RyanFortner)
+    box86-generic-arm:armhf \
+    # Box64 Oficial (Debian)
     box64 \
     # Utilitários
-    ca-certificates \
     curl \
-    wget \
     xz-utils \
     jq \
     tzdata \
@@ -166,7 +131,7 @@ RUN dpkg --add-architecture armhf && \
 # -----------------------------------------------------------------------------
 # Copiar Box86 compilado e Wine
 # -----------------------------------------------------------------------------
-COPY --from=box86-builder /box86-install/usr/local/bin/box86 /usr/local/bin/box86
+
 COPY --from=wine-prep /wine /opt/wine
 
 # Verificar instalações
