@@ -69,6 +69,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     SERVER_DIR="/data/server" \
     SAVES_DIR="/data/saves" \
     VRISING_APP_ID="1829350" \
+    # BepInEx Plugins Support (set to true to enable mods)
+    ENABLE_PLUGINS="false" \
     WINEPREFIX="/data/wine" \
     WINEARCH="win64" \
     WINEDEBUG="-all" \
@@ -155,6 +157,43 @@ RUN mkdir -p /opt/steamcmd && \
     tar -xzf steamcmd.tar.gz && \
     rm steamcmd.tar.gz && \
     chmod +x steamcmd.sh
+
+# -----------------------------------------------------------------------------
+# Baixar BepInEx ARM64-Friendly (tsx-cloud)
+# Inclui interop assemblies pré-gerados que funcionam com Box64
+# -----------------------------------------------------------------------------
+ARG TSX_REPO="https://raw.githubusercontent.com/tsx-cloud/vrising-ntsync/main/Docker/server"
+
+RUN mkdir -p /opt/bepinex/BepInEx/{config,core,plugins,interop,unity-libs,addition_stuff} /opt/bepinex/dotnet && \
+    # Arquivos raiz
+    wget -q "${TSX_REPO}/winhttp.dll" -O /opt/bepinex/winhttp.dll && \
+    wget -q "${TSX_REPO}/doorstop_config.ini" -O /opt/bepinex/doorstop_config.ini && \
+    wget -q "${TSX_REPO}/.doorstop_version" -O /opt/bepinex/.doorstop_version && \
+    # core (main BepInEx DLLs)
+    for f in $(wget -q -O - "https://api.github.com/repos/tsx-cloud/vrising-ntsync/contents/Docker/server/BepInEx/core" | jq -r '.[] | select(.type=="file") | .download_url'); do \
+    wget -q "$f" -O "/opt/bepinex/BepInEx/core/$(basename $f)"; \
+    done && \
+    # interop (pre-generated IL2CPP interop assemblies)
+    for f in $(wget -q -O - "https://api.github.com/repos/tsx-cloud/vrising-ntsync/contents/Docker/server/BepInEx/interop" | jq -r '.[] | select(.type=="file") | .download_url'); do \
+    wget -q "$f" -O "/opt/bepinex/BepInEx/interop/$(basename $f)"; \
+    done && \
+    # unity-libs
+    for f in $(wget -q -O - "https://api.github.com/repos/tsx-cloud/vrising-ntsync/contents/Docker/server/BepInEx/unity-libs" | jq -r '.[] | select(.type=="file") | .download_url'); do \
+    wget -q "$f" -O "/opt/bepinex/BepInEx/unity-libs/$(basename $f)"; \
+    done && \
+    # config
+    for f in $(wget -q -O - "https://api.github.com/repos/tsx-cloud/vrising-ntsync/contents/Docker/server/BepInEx/config" | jq -r '.[] | select(.type=="file") | .download_url'); do \
+    wget -q "$f" -O "/opt/bepinex/BepInEx/config/$(basename $f)"; \
+    done && \
+    # dotnet (bundled .NET runtime for BepInEx)
+    for f in $(wget -q -O - "https://api.github.com/repos/tsx-cloud/vrising-ntsync/contents/Docker/server/dotnet" | jq -r '.[] | select(.type=="file") | .download_url'); do \
+    wget -q "$f" -O "/opt/bepinex/dotnet/$(basename $f)"; \
+    done && \
+    # addition_stuff (box64 config)
+    for f in $(wget -q -O - "https://api.github.com/repos/tsx-cloud/vrising-ntsync/contents/Docker/server/BepInEx/addition_stuff" | jq -r '.[] | select(.type=="file") | .download_url'); do \
+    wget -q "$f" -O "/opt/bepinex/BepInEx/addition_stuff/$(basename $f)"; \
+    done && \
+    echo "BepInEx ARM64-Friendly downloaded successfully!"
 
 # -----------------------------------------------------------------------------
 # Setup Final

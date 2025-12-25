@@ -273,6 +273,73 @@ EOF
     fi
 }
 
+# =============================================================================
+# BepInEx Setup (ARM64-Friendly)
+# =============================================================================
+setup_bepinex() {
+    ENABLE_PLUGINS="${ENABLE_PLUGINS:-false}"
+    
+    if [ "${ENABLE_PLUGINS}" != "true" ] && [ "${ENABLE_PLUGINS}" != "1" ]; then
+        log_info "Plugins desabilitados (ENABLE_PLUGINS=${ENABLE_PLUGINS})"
+        return 0
+    fi
+    
+    log_info "=============================================="
+    log_info "Configurando BepInEx ARM64-Friendly..."
+    log_info "=============================================="
+    
+    # Verificar se os arquivos do BepInEx existem na imagem
+    if [ ! -d "/opt/bepinex/BepInEx" ]; then
+        log_error "BepInEx não encontrado em /opt/bepinex! Plugins desabilitados."
+        return 1
+    fi
+    
+    # Copiar BepInEx para o diretório do servidor se não existir
+    if [ ! -d "${SERVER_DIR}/BepInEx" ]; then
+        log_info "Instalando BepInEx no servidor..."
+        
+        # Copiar estrutura completa
+        cp -r /opt/bepinex/BepInEx "${SERVER_DIR}/"
+        cp -r /opt/bepinex/dotnet "${SERVER_DIR}/"
+        cp /opt/bepinex/winhttp.dll "${SERVER_DIR}/"
+        cp /opt/bepinex/doorstop_config.ini "${SERVER_DIR}/"
+        cp /opt/bepinex/.doorstop_version "${SERVER_DIR}/"
+        
+        log_success "BepInEx instalado!"
+    else
+        log_info "BepInEx já instalado"
+    fi
+    
+    # Verificar arquivos críticos
+    if [ ! -f "${SERVER_DIR}/winhttp.dll" ]; then
+        log_warning "winhttp.dll não encontrado, copiando..."
+        cp /opt/bepinex/winhttp.dll "${SERVER_DIR}/"
+    fi
+    
+    if [ ! -f "${SERVER_DIR}/doorstop_config.ini" ]; then
+        log_warning "doorstop_config.ini não encontrado, copiando..."
+        cp /opt/bepinex/doorstop_config.ini "${SERVER_DIR}/"
+    fi
+    
+    # Habilitar o doorstop no config
+    sed -i "s/^enabled *=.*/enabled = true/" "${SERVER_DIR}/doorstop_config.ini"
+    
+    # Configurar Wine DLL override para carregar winhttp.dll do BepInEx
+    export WINEDLLOVERRIDES="winhttp=n,b;mshtml=d;dnsapi=b;amsi=d"
+    
+    # Configurar Box64 para BepInEx (se existir arquivo de config)
+    if [ -f "${SERVER_DIR}/BepInEx/addition_stuff/box64.rc" ]; then
+        log_info "Carregando configurações Box64 para BepInEx..."
+        source "${SERVER_DIR}/BepInEx/addition_stuff/box64.rc" 2>/dev/null || true
+    fi
+    
+    # Contar plugins instalados
+    local plugin_count=$(find "${SERVER_DIR}/BepInEx/plugins" -name "*.dll" 2>/dev/null | wc -l)
+    log_success "BepInEx configurado! Plugins encontrados: ${plugin_count}"
+    
+    return 0
+}
+
 start_server() {
     log_info "=============================================="
     log_info "Iniciando servidor V Rising..."
@@ -354,4 +421,5 @@ init_display || exit 1
 init_wine_fast
 install_or_update_server || exit 1
 configure_server
+setup_bepinex
 start_server
