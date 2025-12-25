@@ -22,6 +22,20 @@
 # OPÇÃO 1: Ubuntu 25.04 (Plucky) - RECOMENDADO para NTSync
 # Ubuntu 25.04 vem com kernel 6.14+ que tem NTSync built-in
 # -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# ESTÁGIO DE BUILD: Extrair BepInEx pré-gerado do tsx-cloud
+# -----------------------------------------------------------------------------
+# A abordagem "fora da casinha": Em vez de tentar gerar o BepInEx no ARM64
+# (que trava o Box64 devido a loops paralelos no Il2CppInterop), nós
+# "roubamos" os arquivos já gerados e funcionando da imagem referência.
+# Isso garante 100% de compatibilidade sem dores de cabeça com JIT/Threading.
+# -----------------------------------------------------------------------------
+FROM tsxcloud/vrising-ntsync:latest AS source
+
+# -----------------------------------------------------------------------------
+# OPÇÃO 1: Ubuntu 25.04 (Plucky) - RECOMENDADO para NTSync
+# Ubuntu 25.04 vem com kernel 6.14+ que tem NTSync built-in
+# -----------------------------------------------------------------------------
 FROM ubuntu:25.04
 
 # -----------------------------------------------------------------------------
@@ -217,7 +231,12 @@ COPY scripts/entrypoint.sh /scripts/entrypoint.sh
 COPY scripts/load_emulators_env.sh /scripts/load_emulators_env.sh
 COPY scripts/setup_bepinex.sh /scripts/setup_bepinex.sh
 COPY config/ /scripts/config/
-COPY bepinex/ /scripts/bepinex/
+COPY config/ /scripts/config/
+# COPY bepinex/ /scripts/bepinex/  <-- Substituído pela cópia do stage 'source'
+# Copiar BepInEx INTEIRO (com interop gerado) da imagem referência
+COPY --from=source /apps/vrising/server/BepInEx /scripts/bepinex/server
+COPY bepinex/doorstop_config.ini /scripts/bepinex/doorstop_config.ini
+
 RUN chmod +x /scripts/*.sh
 
 # =============================================================================

@@ -42,6 +42,12 @@ export DISPLAY=":0"
 # Box64 settings (podem ser sobrescritos pelo emulators.rc)
 # Nota: Box86 não é mais necessário - usamos Wine WOW64
 export BOX64_LOG=0
+# Otimizações CRÍTICAS para Unity no Box64
+# BIGBLOCK=0 previne crashes em blocos JIT muito grandes (comum em C# Unity)
+export BOX64_DYNAREC_BIGBLOCK=0
+# FORCETHREADS=1 ajuda em alguns casos de deadlock
+# SCREENSHOT_WORKAROUND=1 pode ajudar se houver problemas gráficos headless
+
 export BOX64_NOBANNER=1
 export BOX64_LD_LIBRARY_PATH="/opt/wine/lib64:/opt/wine/lib"
 
