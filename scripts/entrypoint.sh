@@ -67,36 +67,19 @@ check_ntsync() {
     log_ntsync "=============================================="
     log_ntsync "Checking NTSYNC"
     log_ntsync "=============================================="
-    log_ntsync "The NTSYNC module has been present in the Linux kernel since version 6.14"
+    log_ntsync "The NTSYNC module has been present in the Linux kernel since version 6.14 and is usually included only in the generic kernel versions."
     log_ntsync "Kernel version on this machine is -- $(uname -r)"
-    
-    # Abordagem tsx-cloud: usar lsof para verificar se ntsync está em uso
-    /usr/bin/lsof /dev/ntsync 2>/dev/null || true
-    
-    if /sbin/lsmod 2>/dev/null | grep -q ntsync; then
-        if /usr/bin/lsof /dev/ntsync > /dev/null 2>&1; then
-            log_success "NTSYNC Module is present in kernel, ntsync is running."
-            NTSYNC_AVAILABLE="true"
-        else
-            log_info "NTSYNC Module is present in kernel, but ntsync is NOT running."
-            log_info "No problem — ntsync is not necessary, server works without it."
-            NTSYNC_AVAILABLE="false"
-        fi
+
+    /usr/bin/lsof /dev/ntsync
+    if /sbin/lsmod | grep -q ntsync; then
+      if /usr/bin/lsof /dev/ntsync > /dev/null 2>&1; then
+        log_success "NTSYNC Module is present in kernel, ntsync is running."
+      else
+        log_info "NTSYNC Module is present in kernel, but ntsync is NOT running. No problem — ntsync is not nessesary."
+      fi
     else
-        # Verificar se /dev/ntsync existe mesmo sem módulo no lsmod
-        if [ -c "/dev/ntsync" ]; then
-            log_success "NTSYNC device /dev/ntsync exists!"
-            NTSYNC_AVAILABLE="true"
-        else
-            log_info "NTSYNC Module is NOT present in kernel."
-            log_info "No problem — ntsync is not necessary, server works without it."
-            NTSYNC_AVAILABLE="false"
-        fi
+      log_info "NTSYNC Module is NOT present in kernel. No problem — ntsync is not nessesary."
     fi
-    
-    export NTSYNC_AVAILABLE
-    log_ntsync "NTSync Status: ${NTSYNC_AVAILABLE}"
-    log_ntsync "=============================================="
 }
 
 load_emulators_config() {
@@ -348,7 +331,7 @@ start_server() {
     log_info "Game Port: ${GAME_PORT} | Query Port: ${QUERY_PORT}"
     log_info "Max Users: ${MAX_USERS} | Game Mode: ${GAME_MODE_TYPE}"
     log_info "Difficulty: ${GAME_DIFFICULTY_PRESET:-Difficulty_Brutal} 💀"
-    log_info "NTSync: ${NTSYNC_AVAILABLE}"
+    # log_info "NTSync: ${NTSYNC_AVAILABLE}"
     log_info "=============================================="
     
     cd "${SERVER_DIR}"
@@ -415,11 +398,11 @@ ln -sf /usr/share/zoneinfo/${TZ} /etc/localtime 2>/dev/null || true
 mkdir -p "${SERVER_DIR}" "${SAVES_DIR}" "${WINEPREFIX}" /data/logs "${SETTINGS_DIR}"
 
 # Pipeline de inicialização
-check_ntsync                    # Verificar suporte NTSync
 load_emulators_config           # Carregar configs Box64/FEX
 init_display || exit 1          # Iniciar Xvfb
+configure_wine_audio            # Desabilitar audio (winetricks antes do wineboot)
 init_wine_fast                  # Inicializar Wine prefix
-configure_wine_audio            # Desabilitar audio
+check_ntsync                    # Verificar suporte NTSync
 install_or_update_server || exit 1  # Baixar/atualizar servidor
 configure_bepinex               # Configurar BepInEx/Plugins
 configure_server                # Aplicar configurações
