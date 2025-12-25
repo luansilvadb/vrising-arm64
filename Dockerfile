@@ -126,7 +126,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN wget https://ryanfortner.github.io/box64-debs/box64.list -O /etc/apt/sources.list.d/box64.list && \
     wget -qO- https://ryanfortner.github.io/box64-debs/KEY.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/box64-debs-archive-keyring.gpg && \
     apt-get update && \
-    apt-get install -y box64-generic-arm && \
+    apt-get install -y box64 && \
     rm -rf /var/lib/apt/lists/* && \
     # Verificar instalação
     box64 --version
