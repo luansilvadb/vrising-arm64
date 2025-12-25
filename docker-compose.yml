@@ -23,6 +23,10 @@ services:
     # Isso permite NTSync funcionar automaticamente se disponível no host
     privileged: true
 
+    # NTSync device mapping (necessário mesmo com privileged em alguns casos)
+    devices:
+      - /dev/ntsync:/dev/ntsync
+
     # Variáveis de ambiente para configuração
     environment:
       # Configurações básicas do servidor

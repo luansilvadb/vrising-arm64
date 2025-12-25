@@ -213,7 +213,7 @@ install_or_update_server() {
         needs_download=true
     fi
     
-    log_info "Executando SteamCMD via Box86..."
+    log_info "Executando SteamCMD via Box64..."
     if [ "$needs_download" = "true" ]; then
         log_info "Download de ~2GB - isso pode demorar 5-15 minutos..."
     fi
@@ -230,8 +230,8 @@ install_or_update_server() {
             log_info "Tentativa ${attempt} de ${max_attempts}..."
         fi
         
-        # Usar wrapper steamcmd.sh (como tsx-cloud faz)
-        /usr/local/bin/steamcmd.sh \
+        # Usar wrapper steamcmd (via Box64)
+        steamcmd \
             +@sSteamCmdForcePlatformType windows \
             +force_install_dir "${SERVER_DIR}" \
             +login anonymous \

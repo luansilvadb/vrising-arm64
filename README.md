@@ -5,7 +5,7 @@
 [![NTSync](https://img.shields.io/badge/NTSync-Supported-purple)](https://www.phoronix.com/news/NTSync-Merged-Linux-6.14)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
-Servidor dedicado de **V Rising** otimizado para rodar em **ARM64** (Oracle Cloud Ampere A1, Raspberry Pi 5, Orange Pi 5, etc.) usando Docker com **Box64/Box86 + Wine Staging-TKG** para emulação.
+Servidor dedicado de **V Rising** otimizado para rodar em **ARM64** (Oracle Cloud Ampere A1, Raspberry Pi 5, Orange Pi 5, etc.) usando Docker com **Box64 + Wine Staging-TKG WOW64** para emulação.
 
 ## ✨ Novidades (v2.0 - NTSync Edition)
 
@@ -24,7 +24,7 @@ Servidor dedicado de **V Rising** otimizado para rodar em **ARM64** (Oracle Clou
 | **Disco** | 10 GB | 20 GB SSD |
 | **SO** | Ubuntu 22.04 ARM64 | Ubuntu 25.04+ ARM64 |
 
-> ⚠️ **Nota**: Este servidor usa emulação x86/x64 via Box64/Box86, o que adiciona overhead de ~20-40% de CPU comparado a um servidor nativo.
+> ⚠️ **Nota**: Este servidor usa emulação x86_64 via Box64 + Wine WOW64, o que adiciona overhead de ~20-40% de CPU comparado a um servidor nativo.
 
 ### Requisitos para NTSync (Opcional)
 
