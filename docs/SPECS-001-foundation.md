@@ -130,26 +130,37 @@ RUN apt-get install -y \
 
 ## 5. Configurações do Servidor
 
-### 5.1 Variáveis de Ambiente
+### 5.1 Variáveis de Ambiente (ServerHostSettings)
+
+Estas variáveis controlam **apenas** o `ServerHostSettings.json` (infraestrutura):
 
 | Variável | Padrão | Descrição |
 |----------|--------|-----------|
 | `SERVER_NAME` | V Rising Server | Nome exibido na lista |
+| `SERVER_DESCRIPTION` | Servidor dedicado brasileiro | Descrição |
 | `WORLD_NAME` | world1 | Nome do save |
 | `PASSWORD` | (vazio) | Senha do servidor |
 | `MAX_USERS` | 40 | Máximo de jogadores |
+| `MAX_ADMINS` | 5 | Máximo de admins |
 | `GAME_PORT` | 9876 | Porta UDP do jogo |
 | `QUERY_PORT` | 9877 | Porta UDP de query |
 | `LIST_ON_MASTER_SERVER` | false | Aparecer na lista Steam |
 | `LIST_ON_EOS` | false | Aparecer no Epic |
-| `GAME_MODE_TYPE` | PvP | PvP ou PvE |
+| `GAME_DIFFICULTY_PRESET` | Difficulty_Brutal | Preset de dificuldade |
+| `SERVER_FPS` | 60 | FPS do servidor |
+| `AUTO_SAVE_COUNT` | 25 | Número de saves mantidos |
+| `AUTO_SAVE_INTERVAL` | 120 | Intervalo entre saves (seg) |
+| `COMPRESS_SAVE_FILES` | true | Comprimir saves |
+| `RCON_ENABLED` | true | Habilitar RCON |
+| `RCON_PORT` | 25575 | Porta RCON (TCP) |
+| `RCON_PASSWORD` | (vazio) | Senha RCON |
 
 ### 5.2 Arquivos de Configuração
 
 Criados em `/data/saves/Settings/`:
 
-- `ServerHostSettings.json` - Configurações de rede e servidor
-- `ServerGameSettings.json` - Regras de gameplay
+- `ServerHostSettings.json` - **Gerado dinamicamente** a partir das variáveis de ambiente
+- `ServerGameSettings.json` - **Gerenciado via File Mount** do EasyPanel (gameplay)
 
 ---
 

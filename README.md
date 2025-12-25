@@ -37,7 +37,7 @@ Servidor dedicado de **V Rising** otimizado para rodar em **ARM64** (Oracle Clou
    MAX_USERS=40
    GAME_PORT=9876
    QUERY_PORT=9877
-   GAME_MODE_TYPE=PvP
+   RCON_PASSWORD=senhaforte123
    TZ=America/Sao_Paulo
    ```
 
@@ -71,7 +71,6 @@ docker compose logs -f
 
 ### Opção 3: Docker CLI
 
-```bash
 docker run -d \
   --name vrising-server \
   --restart unless-stopped \
@@ -79,28 +78,40 @@ docker run -d \
   -e WORLD_NAME="world1" \
   -e PASSWORD="minhasenha" \
   -e MAX_USERS="40" \
-  -e GAME_MODE_TYPE="PvP" \
+  -e RCON_PASSWORD="senhaforte123" \
   -p 9876:9876/udp \
   -p 9877:9877/udp \
-  -v vrising-server:/data/server \
-  -v vrising-saves:/data/saves \
+  -p 25575:25575/tcp \
+  -v vrising-data:/data \
   seu-usuario/vrising-arm64
 ```
 
 ## ⚙️ Variáveis de Ambiente
 
+Estas variáveis controlam **apenas** o `ServerHostSettings.json` (infraestrutura do servidor).
+Para configurações de **gameplay**, use o File Mount do EasyPanel com `ServerGameSettings.json`.
+
 | Variável | Padrão | Descrição |
 |----------|--------|-----------|
 | `SERVER_NAME` | `V Rising Server` | Nome do servidor |
+| `SERVER_DESCRIPTION` | `Servidor dedicado brasileiro` | Descrição |
 | `WORLD_NAME` | `world1` | Nome do save/mundo |
 | `PASSWORD` | ` ` (vazio) | Senha do servidor |
 | `MAX_USERS` | `40` | Máximo de jogadores |
+| `MAX_ADMINS` | `5` | Máximo de admins |
 | `GAME_PORT` | `9876` | Porta do jogo (UDP) |
 | `QUERY_PORT` | `9877` | Porta de query (UDP) |
 | `LIST_ON_MASTER_SERVER` | `false` | Listar no Steam |
 | `LIST_ON_EOS` | `false` | Listar no EOS |
-| `GAME_MODE_TYPE` | `PvP` | Modo: `PvP` ou `PvE` |
 | `GAME_DIFFICULTY_PRESET` | `Difficulty_Brutal` | Preset de dificuldade |
+| `SERVER_FPS` | `60` | FPS do servidor |
+| `AUTO_SAVE_COUNT` | `25` | Número de saves mantidos |
+| `AUTO_SAVE_INTERVAL` | `120` | Intervalo entre saves (segundos) |
+| `COMPRESS_SAVE_FILES` | `true` | Comprimir saves |
+| `RCON_ENABLED` | `true` | Habilitar RCON |
+| `RCON_PORT` | `25575` | Porta RCON (TCP) |
+| `RCON_PASSWORD` | ` ` (vazio) | Senha RCON |
+| `AUTO_UPDATE` | `true` | Atualizar servidor no restart |
 | `TZ` | `America/Sao_Paulo` | Timezone |
 
 ## 📁 Estrutura de Diretórios

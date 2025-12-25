@@ -40,14 +40,25 @@ export BOX64_LD_LIBRARY_PATH="/opt/wine/lib64:/opt/wine/lib"
 
 # Configurações do servidor
 SERVER_NAME="${SERVER_NAME:-V Rising Server}"
+SERVER_DESCRIPTION="${SERVER_DESCRIPTION:-Servidor dedicado brasileiro}"
 WORLD_NAME="${WORLD_NAME:-world1}"
 PASSWORD="${PASSWORD:-}"
 MAX_USERS="${MAX_USERS:-40}"
+MAX_ADMINS="${MAX_ADMINS:-5}"
+SERVER_FPS="${SERVER_FPS:-60}"
+GAME_DIFFICULTY_PRESET="${GAME_DIFFICULTY_PRESET:-Difficulty_Brutal}"
 GAME_PORT="${GAME_PORT:-9876}"
 QUERY_PORT="${QUERY_PORT:-9877}"
 LIST_ON_MASTER_SERVER="${LIST_ON_MASTER_SERVER:-false}"
 LIST_ON_EOS="${LIST_ON_EOS:-false}"
-GAME_MODE_TYPE="${GAME_MODE_TYPE:-PvP}"
+AUTO_SAVE_COUNT="${AUTO_SAVE_COUNT:-25}"
+AUTO_SAVE_INTERVAL="${AUTO_SAVE_INTERVAL:-120}"
+COMPRESS_SAVE_FILES="${COMPRESS_SAVE_FILES:-true}"
+RCON_ENABLED="${RCON_ENABLED:-true}"
+RCON_PORT="${RCON_PORT:-25575}"
+RCON_PASSWORD="${RCON_PASSWORD:-}"
+AUTO_UPDATE="${AUTO_UPDATE:-true}"
+TZ="${TZ:-America/Sao_Paulo}"
 
 # =============================================================================
 # Funções
@@ -114,7 +125,7 @@ install_or_update_server() {
     local needs_download=false
     
     if [ -f "${SERVER_DIR}/VRisingServer.exe" ]; then
-        if [ "${AUTO_UPDATE:-true}" = "true" ]; then
+        if [ "${AUTO_UPDATE}" = "true" ]; then
             log_info "Servidor instalado. Verificando atualizações..."
         else
             log_success "Servidor já instalado! (AUTO_UPDATE=false, pulando verificação)"
@@ -194,26 +205,34 @@ configure_server() {
            --argjson port "${GAME_PORT}" \
            --argjson qport "${QUERY_PORT}" \
            --argjson maxusers "${MAX_USERS}" \
-           --argjson fps "${SERVER_FPS:-60}" \
+           --argjson maxadmins "${MAX_ADMINS}" \
+           --argjson fps "${SERVER_FPS}" \
            --arg save "${WORLD_NAME}" \
            --arg pass "${PASSWORD}" \
            --argjson master "${LIST_ON_MASTER_SERVER}" \
            --argjson eos "${LIST_ON_EOS}" \
-           --arg diff "${GAME_DIFFICULTY_PRESET:-Difficulty_Brutal}" \
-           --argjson rcon_enabled "${RCON_ENABLED:-true}" \
-           --argjson rcon_port "${RCON_PORT:-25575}" \
-           --arg rcon_pass "${RCON_PASSWORD:-}" \
+           --arg diff "${GAME_DIFFICULTY_PRESET}" \
+           --argjson autosave_count "${AUTO_SAVE_COUNT}" \
+           --argjson autosave_interval "${AUTO_SAVE_INTERVAL}" \
+           --argjson compress_saves "${COMPRESS_SAVE_FILES}" \
+           --argjson rcon_enabled "${RCON_ENABLED}" \
+           --argjson rcon_port "${RCON_PORT}" \
+           --arg rcon_pass "${RCON_PASSWORD}" \
            '.Name = $name |
             .Description = $desc |
             .Port = $port |
             .QueryPort = $qport |
             .MaxConnectedUsers = $maxusers |
+            .MaxConnectedAdmins = $maxadmins |
             .ServerFps = $fps |
             .SaveName = $save |
             .Password = $pass |
             .ListOnMasterServer = $master |
             .ListOnEOS = $eos |
             .GameDifficultyPreset = $diff |
+            .AutoSaveCount = $autosave_count |
+            .AutoSaveInterval = $autosave_interval |
+            .CompressSaveFiles = $compress_saves |
             .Rcon.Enabled = $rcon_enabled |
             .Rcon.Port = $rcon_port |
             .Rcon.Password = $rcon_pass' \
@@ -224,16 +243,26 @@ configure_server() {
         cat > "${SETTINGS_DIR}/ServerHostSettings.json" << EOF
 {
   "Name": "${SERVER_NAME}",
-  "Description": "${SERVER_DESCRIPTION:-Servidor dedicado brasileiro}",
+  "Description": "${SERVER_DESCRIPTION}",
   "Port": ${GAME_PORT},
   "QueryPort": ${QUERY_PORT},
   "MaxConnectedUsers": ${MAX_USERS},
+  "MaxConnectedAdmins": ${MAX_ADMINS},
+  "ServerFps": ${SERVER_FPS},
   "SaveName": "${WORLD_NAME}",
   "Password": "${PASSWORD}",
+  "Secure": true,
   "ListOnMasterServer": ${LIST_ON_MASTER_SERVER},
   "ListOnEOS": ${LIST_ON_EOS},
-  "GameDifficultyPreset": "${GAME_DIFFICULTY_PRESET:-Difficulty_Brutal}",
-  "Rcon": { "Enabled": ${RCON_ENABLED:-true}, "Port": ${RCON_PORT:-25575}, "Password": "${RCON_PASSWORD:-}" }
+  "AutoSaveCount": ${AUTO_SAVE_COUNT},
+  "AutoSaveInterval": ${AUTO_SAVE_INTERVAL},
+  "CompressSaveFiles": ${COMPRESS_SAVE_FILES},
+  "GameSettingsPreset": "",
+  "GameDifficultyPreset": "${GAME_DIFFICULTY_PRESET}",
+  "AdminOnlyDebugEvents": true,
+  "DisableDebugEvents": false,
+  "API": { "Enabled": false },
+  "Rcon": { "Enabled": ${RCON_ENABLED}, "Port": ${RCON_PORT}, "Password": "${RCON_PASSWORD}" }
 }
 EOF
     fi
@@ -260,8 +289,8 @@ start_server() {
     log_info "=============================================="
     log_info "Server Name: ${SERVER_NAME}"
     log_info "Game Port: ${GAME_PORT} | Query Port: ${QUERY_PORT}"
-    log_info "Max Users: ${MAX_USERS} | Game Mode: ${GAME_MODE_TYPE}"
-    log_info "Difficulty: ${GAME_DIFFICULTY_PRESET:-Difficulty_Brutal} 💀"
+    log_info "Max Users: ${MAX_USERS} | Max Admins: ${MAX_ADMINS}"
+    log_info "Difficulty: ${GAME_DIFFICULTY_PRESET} 💀"
     log_info "=============================================="
     
     cd "${SERVER_DIR}"

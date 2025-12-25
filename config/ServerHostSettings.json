@@ -24,6 +24,6 @@
     "Rcon": {
         "Enabled": true,
         "Port": 25575,
-        "Password": "master.007,1"
+        "Password": ""
     }
 }

@@ -19,16 +19,28 @@ LABEL description="V Rising Dedicated Server for ARM64 using Box64/Wine"
 ENV DEBIAN_FRONTEND=noninteractive \
     # Configurações do servidor
     SERVER_NAME="V Rising Server" \
+    SERVER_DESCRIPTION="Servidor dedicado brasileiro" \
     WORLD_NAME="world1" \
     PASSWORD="" \
     MAX_USERS="40" \
+    MAX_ADMINS="5" \
+    SERVER_FPS="60" \
+    GAME_DIFFICULTY_PRESET="Difficulty_Brutal" \
     GAME_PORT="9876" \
     QUERY_PORT="9877" \
     # Lista de servidores públicos
     LIST_ON_MASTER_SERVER="false" \
     LIST_ON_EOS="false" \
-    # Modo de jogo (PvP ou PvE)
-    GAME_MODE_TYPE="PvP" \
+    # Auto Save
+    AUTO_SAVE_COUNT="25" \
+    AUTO_SAVE_INTERVAL="120" \
+    COMPRESS_SAVE_FILES="true" \
+    # RCON
+    RCON_ENABLED="true" \
+    RCON_PORT="25575" \
+    RCON_PASSWORD="" \
+    # Atualização automática
+    AUTO_UPDATE="true" \
     # Timezone
     TZ="America/Sao_Paulo" \
     # Diretórios
