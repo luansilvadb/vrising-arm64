@@ -44,7 +44,8 @@ export WINEPREFIX="${WINEPREFIX:-/data/wine}"
 export WINEARCH="win64"
 # dnsapi=b força uso de builtin para evitar erro __res_query
 # REMOVIDO mscoree=d para permitir Wine Mono
-export WINEDLLOVERRIDES="mshtml=d;dnsapi=b"
+# ADICIONADO amsi=d para evitar lentidão no AMSI (Antimalware Scan Interface)
+export WINEDLLOVERRIDES="mshtml=d;dnsapi=b;amsi=d"
 export DISPLAY=":0"
 export BOX64_LD_LIBRARY_PATH="/opt/wine/lib/wine/x86_64-unix:/opt/wine/lib"
 
