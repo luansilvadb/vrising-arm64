@@ -47,7 +47,7 @@
     "ShowSiegeWeaponMapIcon": true,
     "BuildCostModifier": 1.0,
     "RecipeCostModifier": 1.0,
-    "CraftRateModifier": 1.0,
+    "CraftRateModifier": 3.0,
     "ResearchCostModifier": 1.0,
     "RefinementCostModifier": 1.0,
     "RefinementRateModifier": 3.0,
