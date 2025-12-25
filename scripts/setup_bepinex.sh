@@ -64,8 +64,69 @@ verify_bepinex_installation() {
     return 0
 }
 
-    # =========================================================================
-    # ABORDAGEM ÚNICA: Geração Segura via Interpretador
+setup_bepinex() {
+    log_bepinex "=============================================="
+    log_bepinex "Setting up BepInEx for V Rising (Safe Generation Mode)"
+    log_bepinex "=============================================="
+    
+    # Verificar se instalação está COMPLETA
+    if verify_bepinex_installation; then
+        log_bepinex "BepInEx installation verified complete!"
+    else
+        log_bepinex "BepInEx needs installation/repair..."
+        
+        # =========================================================================
+        # PASSO 1: Instalar Arquivos Base (Core)
+        # =========================================================================
+        
+        # Opção A: Copiar de defaults (se existirem na imagem)
+        if [ -d "${BEPINEX_DEFAULTS}" ] && [ -f "${BEPINEX_DEFAULTS}/core/BepInEx.Unity.IL2CPP.dll" ]; then
+            log_bepinex "Copying BepInEx from local defaults..."
+            cp -r "${BEPINEX_DEFAULTS}/." "${SERVER_DIR}/"
+            log_success "BepInEx core files installed from image."
+            
+        # Opção B: Baixar do GitHub (Fallback)
+        else
+            log_warning "Local BepInEx defaults not found. Downloading v6.0.0-pre.1..."
+            
+            local BEPINEX_VERSION="6.0.0-pre.1"
+            # URL para BepInEx Unity IL2CPP Windows x64
+            local BEPINEX_URL="https://github.com/BepInEx/BepInEx/releases/download/v${BEPINEX_VERSION}/BepInEx-Unity.IL2CPP-win-x64-${BEPINEX_VERSION}.zip"
+            
+            cd /tmp
+            wget -q "${BEPINEX_URL}" -O bepinex.zip
+            
+            if [ -f "bepinex.zip" ]; then
+                mkdir -p bepinex_extract
+                unzip -q -o bepinex.zip -d bepinex_extract
+                
+                # Criar estrutura se não existir
+                mkdir -p "${BEPINEX_DIR}"
+                
+                # Mover arquivos para o servidor
+                cp -r bepinex_extract/BepInEx/* "${BEPINEX_DIR}/"
+                cp bepinex_extract/winhttp.dll "${SERVER_DIR}/"
+                cp bepinex_extract/doorstop_config.ini "${SERVER_DIR}/" || true
+                
+                # Copiar dotnet runtime se existir
+                if [ -d "bepinex_extract/dotnet" ]; then
+                    cp -r bepinex_extract/dotnet "${SERVER_DIR}/"
+                fi
+                
+                # Limpeza
+                rm -rf bepinex.zip bepinex_extract
+                log_success "BepInEx downloaded and installed successfully."
+            else
+                log_error "Failed to download BepInEx!"
+                return 1
+            fi
+        fi
+
+        # Garantir doorstop_config correto
+        if [ ! -f "${SERVER_DIR}/doorstop_config.ini" ] && [ -f "/scripts/bepinex/doorstop_config.ini" ]; then
+            cp "/scripts/bepinex/doorstop_config.ini" "${SERVER_DIR}/doorstop_config.ini"
+        fi
+    fi
     # =========================================================================
     # O problema: Il2CppInterop trava no Box64 (JIT) ao gerar assemblies.
     # A solução: Detectamos se a pasta 'interop' está vazia. Se estiver,
