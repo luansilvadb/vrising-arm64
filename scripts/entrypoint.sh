@@ -92,37 +92,100 @@ init_wine_fast() {
     
     if [ -f "${WINEPREFIX}/system.reg" ]; then
         log_info "Wine prefix já existe"
-        return 0
+    else
+        log_info "Criando Wine prefix mínimo..."
+        
+        # Criar estrutura mínima do Wine prefix manualmente (MUITO mais rápido)
+        mkdir -p "${WINEPREFIX}/drive_c/windows/system32"
+        mkdir -p "${WINEPREFIX}/drive_c/windows/syswow64"
+        mkdir -p "${WINEPREFIX}/drive_c/users/root/Temp"
+        mkdir -p "${WINEPREFIX}/drive_c/Program Files"
+        mkdir -p "${WINEPREFIX}/drive_c/Program Files (x86)"
+        
+        # Tentar inicializar Wine rapidamente (timeout de 30s)
+        log_info "Executando wineboot (timeout 60s)..."
+        timeout 60 box64 /opt/wine/bin/wineboot --init 2>&1 &
+        WINEBOOT_PID=$!
+        
+        # Aguardar um pouco e depois matar se ainda estiver rodando
+        sleep 10
+        
+        # Verificar se criou os arquivos básicos
+        if [ -d "${WINEPREFIX}/drive_c/windows" ]; then
+            log_success "Wine prefix básico criado!"
+            # Matar processos Wine extras se ainda estiverem rodando
+            box64 /opt/wine/bin/wineserver -k 2>/dev/null || true
+            sleep 2
+        else
+            log_warning "Continuando sem Wine prefix completo..."
+        fi
     fi
     
-    log_info "Criando Wine prefix mínimo..."
+    # CRITICAL FIX: Configurar DLL override no registro do Wine
+    # Isso é necessário para que o Doorstop/BepInEx funcione no ARM64
+    # WINEDLLOVERRIDES na env não é suficiente com Box64
+    configure_wine_dll_overrides
     
-    # Criar estrutura mínima do Wine prefix manualmente (MUITO mais rápido)
-    mkdir -p "${WINEPREFIX}/drive_c/windows/system32"
-    mkdir -p "${WINEPREFIX}/drive_c/windows/syswow64"
-    mkdir -p "${WINEPREFIX}/drive_c/users/root/Temp"
-    mkdir -p "${WINEPREFIX}/drive_c/Program Files"
-    mkdir -p "${WINEPREFIX}/drive_c/Program Files (x86)"
-    
-    # Tentar inicializar Wine rapidamente (timeout de 30s)
-    log_info "Executando wineboot (timeout 60s)..."
-    timeout 60 box64 /opt/wine/bin/wineboot --init 2>&1 &
-    WINEBOOT_PID=$!
-    
-    # Aguardar um pouco e depois matar se ainda estiver rodando
-    sleep 10
-    
-    # Verificar se criou os arquivos básicos
-    if [ -d "${WINEPREFIX}/drive_c/windows" ]; then
-        log_success "Wine prefix básico criado!"
-        # Matar processos Wine extras se ainda estiverem rodando
-        box64 /opt/wine/bin/wineserver -k 2>/dev/null || true
-        sleep 2
-        return 0
-    fi
-    
-    log_warning "Continuando sem Wine prefix completo..."
     return 0
+}
+
+# =============================================================================
+# Configura DLL overrides no registro do Wine para BepInEx
+# =============================================================================
+configure_wine_dll_overrides() {
+    if [ "${BEPINEX_ENABLED}" != "true" ]; then
+        return 0
+    fi
+    
+    log_info "Configurando DLL overrides no registro do Wine (fix ARM64)..."
+    
+    # Criar arquivo .reg com os overrides necessários
+    cat > /tmp/dll_overrides.reg << 'REGEOF'
+REGEDIT4
+
+[HKEY_CURRENT_USER\Software\Wine\DllOverrides]
+"winhttp"="native,builtin"
+"*winhttp"="native,builtin"
+"version"="native,builtin"
+"*version"="native,builtin"
+REGEOF
+    
+    # Importar no registro do Wine
+    if [ -f "${WINEPREFIX}/system.reg" ]; then
+        cd "${WINEPREFIX}"
+        box64 /opt/wine/bin/wine regedit /tmp/dll_overrides.reg 2>/dev/null || true
+        
+        # Matar processos Wine após regedit
+        box64 /opt/wine/bin/wineserver -k 2>/dev/null || true
+        sleep 1
+        
+        log_success "DLL overrides configurados no registro!"
+    else
+        # Se Wine prefix não existe, adicionar direto no user.reg
+        log_warning "Wine prefix incompleto, adicionando override manualmente..."
+        
+        # Criar user.reg se não existir
+        if [ ! -f "${WINEPREFIX}/user.reg" ]; then
+            cat > "${WINEPREFIX}/user.reg" << 'USERREGEOF'
+WINE REGISTRY Version 2
+;; All keys relative to \\User\\S-1-5-21-0-0-0-1000
+USERREGEOF
+        fi
+        
+        # Adicionar override no user.reg se não existir
+        if ! grep -q "DllOverrides" "${WINEPREFIX}/user.reg" 2>/dev/null; then
+            cat >> "${WINEPREFIX}/user.reg" << 'OVERRIDEEOF'
+
+[Software\\Wine\\DllOverrides]
+"winhttp"="native,builtin"
+"*winhttp"="native,builtin"
+"version"="native,builtin"
+OVERRIDEEOF
+            log_success "DLL overrides adicionados ao user.reg!"
+        fi
+    fi
+    
+    rm -f /tmp/dll_overrides.reg
 }
 
 install_or_update_server() {
@@ -317,11 +380,18 @@ install_bepinex() {
         cp "${BEPINEX_SOURCE}/winhttp.dll" "${SERVER_DIR}/"
     fi
     
-    # CRITICAL: Copiar winhttp.dll para Wine prefix system32
-    # Isso é necessário porque Wine procura DLLs no system32 antes do diretório do exe
+    # Copiar também como version.dll (fallback alternativo para Doorstop)
+    if [ ! -f "${SERVER_DIR}/version.dll" ]; then
+        log_info "Copiando version.dll (alternativa para Doorstop)..."
+        cp "${BEPINEX_SOURCE}/winhttp.dll" "${SERVER_DIR}/version.dll"
+    fi
+    
+    # CRITICAL: Copiar ambos DLLs para Wine prefix system32
+    # Isso é necessário porque Wine pode procurar DLLs no system32 antes do diretório do exe
     if [ -d "${WINEPREFIX}/drive_c/windows/system32" ]; then
-        log_info "Copiando winhttp.dll para Wine system32 (fix ARM64)..."
+        log_info "Copiando Doorstop DLLs para Wine system32 (fix ARM64)..."
         cp "${BEPINEX_SOURCE}/winhttp.dll" "${WINEPREFIX}/drive_c/windows/system32/winhttp.dll"
+        cp "${BEPINEX_SOURCE}/winhttp.dll" "${WINEPREFIX}/drive_c/windows/system32/version.dll"
     fi
     
     # Copiar doorstop_config.ini
