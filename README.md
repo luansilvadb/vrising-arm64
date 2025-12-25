@@ -194,11 +194,40 @@ docker compose logs vrising | grep -i ntsync
 | `GAME_MODE_TYPE` | `PvP` | Modo: `PvP` ou `PvE` |
 | `GAME_DIFFICULTY_PRESET` | `Difficulty_Brutal` | Preset de dificuldade |
 | `SERVER_FPS` | `60` | FPS do servidor (30 ou 60) |
+| `ENABLE_PLUGINS` | `false` | Habilitar suporte a mods (BepInEx) |
 | `RCON_ENABLED` | `true` | Habilitar RCON |
 | `RCON_PORT` | `25575` | Porta RCON (TCP) |
 | `RCON_PASSWORD` | ` ` | Senha RCON |
 | `AUTO_UPDATE` | `true` | Atualizar servidor no restart |
 | `TZ` | `America/Sao_Paulo` | Timezone |
+
+## 🔌 BepInEx/Plugins (Mods)
+
+O servidor suporta mods via **BepInEx 6** (IL2CPP), usando a abordagem do projeto [tsx-cloud](https://github.com/tsx-cloud/vrising-ntsync).
+
+### Habilitando Plugins
+
+1. Defina `ENABLE_PLUGINS=true` no docker-compose.yml ou EasyPanel
+
+2. Reinicie o container
+
+3. Coloque seus plugins em `/data/server/BepInEx/plugins/`
+
+### ⚠️ Nota sobre ARM64
+
+O BepInEx no ARM64 precisa gerar "interop assemblies" na primeira execução. Isso pode:
+- Demorar 5-15 minutos
+- Ou travar devido a incompatibilidade com Box64
+
+**Solução recomendada**: Usar arquivos BepInEx pré-packaged (incluídos em `bepinex/server/`).
+
+Para obter os arquivos pré-packaged:
+```bash
+git clone https://github.com/tsx-cloud/vrising-ntsync.git
+cp -r vrising-ntsync/Docker/server/* bepinex/server/
+```
+
+Veja `bepinex/README.md` para mais detalhes.
 
 ## 📁 Estrutura de Diretórios
 
