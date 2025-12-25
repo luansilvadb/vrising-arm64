@@ -325,11 +325,35 @@ setup_bepinex() {
     sed -i "s/^enabled *=.*/enabled = true/" "${SERVER_DIR}/doorstop_config.ini"
     
     # Configurar Wine DLL override para carregar winhttp.dll do BepInEx
-    export WINEDLLOVERRIDES="winhttp=n,b;mshtml=d;dnsapi=b;amsi=d"
+    # Alinhado com tsx-cloud: apenas winhttp=n,b quando plugins estão habilitados
+    export WINEDLLOVERRIDES="winhttp=n,b"
     
-    # Configurar Box64 para BepInEx (se existir arquivo de config)
+    # =========================================================================
+    # Configurações Box64 para BepInEx/CoreCLR (baseado em tsx-cloud)
+    # Referência: https://github.com/tsx-cloud/vrising-ntsync/blob/main/Docker/emulators.rc
+    # =========================================================================
+    export BOX64_DYNAREC_STRONGMEM=1
+    export BOX64_DYNAREC_BIGBLOCK=0
+    
+    # Logging de debug BepInEx para troubleshooting
+    log_info "Box64 configurado: STRONGMEM=1, BIGBLOCK=0"
+    log_info "WINEDLLOVERRIDES=${WINEDLLOVERRIDES}"
+    
+    # Verificar se coreclr.dll existe no caminho esperado pelo doorstop_config.ini
+    if [ -f "${SERVER_DIR}/dotnet/coreclr.dll" ]; then
+        log_success "CoreCLR encontrado: ${SERVER_DIR}/dotnet/coreclr.dll"
+    else
+        log_warning "CoreCLR NÃO encontrado em ${SERVER_DIR}/dotnet/coreclr.dll!"
+        log_warning "BepInEx pode não funcionar corretamente."
+    fi
+    
+    # Verificar doorstop_config.ini
+    log_info "Conteúdo do doorstop_config.ini (seção Il2Cpp):"
+    grep -A3 "\[Il2Cpp\]" "${SERVER_DIR}/doorstop_config.ini" 2>/dev/null || log_warning "Seção [Il2Cpp] não encontrada"
+    
+    # Configurar Box64 para BepInEx (se existir arquivo de config adicional)
     if [ -f "${SERVER_DIR}/BepInEx/addition_stuff/box64.rc" ]; then
-        log_info "Carregando configurações Box64 para BepInEx..."
+        log_info "Carregando configurações Box64 adicionais..."
         source "${SERVER_DIR}/BepInEx/addition_stuff/box64.rc" 2>/dev/null || true
     fi
     
