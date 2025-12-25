@@ -65,10 +65,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     WINEDLLOVERRIDES="mscoree=d;mshtml=d;dnsapi=b" \
     # Display virtual
     DISPLAY=":0" \
-    # Box settings - habilitar WOW64
-    BOX86_LOG="0" \
+    # Box64 settings (Box86 não é mais necessário com Wine WOW64)
     BOX64_LOG="0" \
-    BOX86_NOBANNER="1" \
     BOX64_NOBANNER="1" \
     BOX64_WINE_PRELOADED="1" \
     BOX64_LD_LIBRARY_PATH="/opt/wine/lib/wine/x86_64-unix:/opt/wine/lib" \
@@ -78,17 +76,13 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LC_ALL=en_US.UTF-8
 
 # =============================================================================
-# Habilitar multiarch armhf (necessário para Box86)
-# =============================================================================
-RUN dpkg --add-architecture armhf
-
-# =============================================================================
 # Instalação de dependências
 # =============================================================================
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     wget \
+    gnupg \
     xz-utils \
     xvfb \
     jq \
@@ -98,12 +92,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     locales \
     # Bibliotecas para resolver __res_query symbol
     libresolv-wrapper \
-    libc6-dev \
-    # Build tools para compilar Box64/Box86
-    git \
-    cmake \
-    build-essential \
-    python3 \
     # Bibliotecas X11 que Wine precisa
     libxinerama1 \
     libxrandr2 \
@@ -125,46 +113,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # NTSync userspace tools (para verificação)
     lsof \
     kmod \
-    # Bibliotecas 32-bit para Box86 (armhf)
-    libc6:armhf \
-    libstdc++6:armhf \
+
     && rm -rf /var/lib/apt/lists/* \
     && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen 2>/dev/null || true \
     && locale-gen 2>/dev/null || true
 
 # =============================================================================
-# Instalar Box86 v0.3.8 (para SteamCMD 32-bit)
+# Instalar Box64 via apt (muito mais rápido que compilar!)
 # =============================================================================
-# Box86 em ARM64 precisa de cross-compiler armhf
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc-arm-linux-gnueabihf \
-    libc6-dev-armhf-cross \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN cd /tmp && \
-    git clone --depth 1 --branch v0.3.8 https://github.com/ptitSeb/box86.git && \
-    cd box86 && \
-    mkdir build && cd build && \
-    # Cross-compilar Box86 para ARM64 host rodando binários armhf
-    cmake .. -DARM64=ON -DARM_DYNAREC=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
-    make -j$(nproc) && \
-    make install && \
-    cd / && rm -rf /tmp/box86 && \
+# Usando o repositório pré-compilado de ryanfortner (mesmo que tsx-cloud usa)
+# Isso reduz o build time de ~20 minutos para ~30 segundos
+# =============================================================================
+RUN wget https://ryanfortner.github.io/box64-debs/box64.list -O /etc/apt/sources.list.d/box64.list && \
+    wget -qO- https://ryanfortner.github.io/box64-debs/KEY.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/box64-debs-archive-keyring.gpg && \
+    apt-get update && \
+    apt-get install -y box64-generic-arm && \
+    rm -rf /var/lib/apt/lists/* && \
     # Verificar instalação
-    box86 --version 2>/dev/null || echo "Box86 instalado (verificação skipped)"
-
-# =============================================================================
-# Instalar Box64 v0.3.8 (para Wine 64-bit)
-# =============================================================================
-RUN cd /tmp && \
-    git clone --depth 1 --branch v0.3.8 https://github.com/ptitSeb/box64.git && \
-    cd box64 && \
-    mkdir build && cd build && \
-    cmake .. -DARM_DYNAREC=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
-    make -j$(nproc) && \
-    make install && \
-    cd / && rm -rf /tmp/box64 && \
-    # Verificar versão instalada
     box64 --version
 
 # =============================================================================
@@ -200,7 +165,10 @@ RUN cd /tmp && \
     winetricks --version || echo "winetricks instalado"
 
 # =============================================================================
-# Instalar SteamCMD (versão Linux x86) + pré-inicializar
+# Instalar SteamCMD + pré-inicializar
+# =============================================================================
+# Nota: Usamos Box64 para rodar o steamcmd.sh (igual tsx-cloud)
+# Com Wine WOW64, não precisamos de Box86 para 32-bit
 # =============================================================================
 RUN mkdir -p /opt/steamcmd && \
     cd /opt/steamcmd && \
@@ -208,28 +176,30 @@ RUN mkdir -p /opt/steamcmd && \
     tar -xzf steamcmd.tar.gz && \
     rm steamcmd.tar.gz && \
     chmod +x steamcmd.sh && \
-    # Criar wrapper para SteamCMD (como tsx-cloud faz)
-    echo '#!/bin/bash' > /usr/local/bin/steamcmd.sh && \
-    echo 'exec /usr/local/bin/box86 /opt/steamcmd/linux32/steamcmd "$@"' >> /usr/local/bin/steamcmd.sh && \
-    chmod +x /usr/local/bin/steamcmd.sh && \
+    # Criar wrapper para SteamCMD via Box64 (como tsx-cloud faz)
+    echo '#!/bin/bash' > /usr/local/bin/steamcmd && \
+    echo 'exec box64 /opt/steamcmd/steamcmd.sh "$@"' >> /usr/local/bin/steamcmd && \
+    chmod +x /usr/local/bin/steamcmd && \
+    # Alias steamcmd.sh -> steamcmd
+    ln -sf /usr/local/bin/steamcmd /usr/local/bin/steamcmd.sh && \
     # Criar wrapper para Wine (como tsx-cloud faz)
     echo '#!/bin/bash' > /usr/local/bin/wine && \
-    echo 'exec /usr/local/bin/box64 /opt/wine/bin/wine "$@"' >> /usr/local/bin/wine && \
+    echo 'exec box64 /opt/wine/bin/wine "$@"' >> /usr/local/bin/wine && \
     chmod +x /usr/local/bin/wine && \
     # Criar wrapper para wine64
     ln -sf /usr/local/bin/wine /usr/local/bin/wine64 && \
     # Criar wrapper para wineboot
     echo '#!/bin/bash' > /usr/local/bin/wineboot && \
-    echo 'exec /usr/local/bin/box64 /opt/wine/bin/wineboot "$@"' >> /usr/local/bin/wineboot && \
+    echo 'exec box64 /opt/wine/bin/wineboot "$@"' >> /usr/local/bin/wineboot && \
     chmod +x /usr/local/bin/wineboot && \
     # Criar wrapper para wineserver
     echo '#!/bin/bash' > /usr/local/bin/wineserver && \
-    echo 'exec /usr/local/bin/box64 /opt/wine/bin/wineserver "$@"' >> /usr/local/bin/wineserver && \
+    echo 'exec box64 /opt/wine/bin/wineserver "$@"' >> /usr/local/bin/wineserver && \
     chmod +x /usr/local/bin/wineserver && \
-    # Pré-inicializar SteamCMD
-    echo "Pré-inicializando SteamCMD (isso pode demorar)..." && \
+    # Pré-inicializar SteamCMD (isso pode demorar na primeira vez)
+    echo "Pré-inicializando SteamCMD via Box64..." && \
     for i in 1 2 3; do \
-    /usr/local/bin/steamcmd.sh +quit 2>/dev/null || true; \
+    steamcmd +quit 2>/dev/null || true; \
     sleep 2; \
     done && \
     echo "SteamCMD pré-inicializado!"

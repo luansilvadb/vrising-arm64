@@ -39,10 +39,9 @@ export WINEDEBUG="-all"
 export WINEDLLOVERRIDES="mscoree=d;mshtml=d;dnsapi=b"
 export DISPLAY=":0"
 
-# Box settings (podem ser sobrescritos pelo emulators.rc)
-export BOX86_LOG=0
+# Box64 settings (podem ser sobrescritos pelo emulators.rc)
+# Nota: Box86 não é mais necessário - usamos Wine WOW64
 export BOX64_LOG=0
-export BOX86_NOBANNER=1
 export BOX64_NOBANNER=1
 export BOX64_LD_LIBRARY_PATH="/opt/wine/lib64:/opt/wine/lib"
 
