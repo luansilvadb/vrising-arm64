@@ -130,37 +130,26 @@ RUN apt-get install -y \
 
 ## 5. Configurações do Servidor
 
-### 5.1 Variáveis de Ambiente (ServerHostSettings)
-
-Estas variáveis controlam **apenas** o `ServerHostSettings.json` (infraestrutura):
+### 5.1 Variáveis de Ambiente
 
 | Variável | Padrão | Descrição |
 |----------|--------|-----------|
 | `SERVER_NAME` | V Rising Server | Nome exibido na lista |
-| `SERVER_DESCRIPTION` | Servidor dedicado brasileiro | Descrição |
 | `WORLD_NAME` | world1 | Nome do save |
 | `PASSWORD` | (vazio) | Senha do servidor |
 | `MAX_USERS` | 40 | Máximo de jogadores |
-| `MAX_ADMINS` | 5 | Máximo de admins |
 | `GAME_PORT` | 9876 | Porta UDP do jogo |
 | `QUERY_PORT` | 9877 | Porta UDP de query |
 | `LIST_ON_MASTER_SERVER` | false | Aparecer na lista Steam |
 | `LIST_ON_EOS` | false | Aparecer no Epic |
-| `GAME_DIFFICULTY_PRESET` | Difficulty_Brutal | Preset de dificuldade |
-| `SERVER_FPS` | 60 | FPS do servidor |
-| `AUTO_SAVE_COUNT` | 25 | Número de saves mantidos |
-| `AUTO_SAVE_INTERVAL` | 120 | Intervalo entre saves (seg) |
-| `COMPRESS_SAVE_FILES` | true | Comprimir saves |
-| `RCON_ENABLED` | true | Habilitar RCON |
-| `RCON_PORT` | 25575 | Porta RCON (TCP) |
-| `RCON_PASSWORD` | (vazio) | Senha RCON |
+| `GAME_MODE_TYPE` | PvP | PvP ou PvE |
 
 ### 5.2 Arquivos de Configuração
 
 Criados em `/data/saves/Settings/`:
 
-- `ServerHostSettings.json` - **Gerado dinamicamente** a partir das variáveis de ambiente
-- `ServerGameSettings.json` - **Gerenciado via File Mount** do EasyPanel (gameplay)
+- `ServerHostSettings.json` - Configurações de rede e servidor
+- `ServerGameSettings.json` - Regras de gameplay
 
 ---
 
@@ -269,25 +258,16 @@ docker restart vrising-server
 | 2025-12-24 | Box64 atualizado para v0.3.8 |
 | 2025-12-24 | SteamCMD pré-inicialização no build |
 | 2025-12-24 | Servidor funcionando! ✅ |
-| 2025-12-25 | **Suporte a mods via BepInEx** 🔌 |
 
 ---
 
-## 12. Documentos Relacionados
-
-- [SPECS-002: Suporte a Mods com BepInEx](SPECS-002-bepinex-mods.md)
-
----
-
-## 13. Links Úteis
+## 12. Links Úteis
 
 - [V Rising Dedicated Server Guide](https://github.com/StunlockStudios/vrising-dedicated-server-instructions)
 - [Box64 GitHub](https://github.com/ptitSeb/box64)
 - [Wine WOW64](https://wiki.winehq.org/Wine64)
 - [Kron4ek Wine Builds](https://github.com/Kron4ek/Wine-Builds)
-- [BepInEx GitHub](https://github.com/BepInEx/BepInEx)
-- [Thunderstore V Rising Mods](https://thunderstore.io/c/v-rising/)
 
 ---
 
-*Documento atualizado em 2025-12-25.*
+*Documento gerado em 2025-12-24. Atualizar conforme necessário.*

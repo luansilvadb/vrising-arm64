@@ -1,3 +1,0 @@
-# Keep this file to preserve the mods directory in git
-# Place your V Rising mod DLLs (.dll files) in this folder
-# They will be automatically loaded by BepInEx when BEPINEX_ENABLED=true

@@ -37,34 +37,17 @@ export BOX64_LOG=0
 export BOX86_NOBANNER=1
 export BOX64_NOBANNER=1
 export BOX64_LD_LIBRARY_PATH="/opt/wine/lib64:/opt/wine/lib"
-# Otimizações Box64 para BepInEx (melhora estabilidade com Il2CppInterop)
-export BOX64_DYNAREC_STRONGMEM=2
-export BOX64_DYNAREC_WAIT=1
 
 # Configurações do servidor
 SERVER_NAME="${SERVER_NAME:-V Rising Server}"
-SERVER_DESCRIPTION="${SERVER_DESCRIPTION:-Servidor dedicado brasileiro}"
 WORLD_NAME="${WORLD_NAME:-world1}"
 PASSWORD="${PASSWORD:-}"
 MAX_USERS="${MAX_USERS:-40}"
-MAX_ADMINS="${MAX_ADMINS:-5}"
-SERVER_FPS="${SERVER_FPS:-60}"
-GAME_DIFFICULTY_PRESET="${GAME_DIFFICULTY_PRESET:-Difficulty_Brutal}"
 GAME_PORT="${GAME_PORT:-9876}"
 QUERY_PORT="${QUERY_PORT:-9877}"
 LIST_ON_MASTER_SERVER="${LIST_ON_MASTER_SERVER:-false}"
 LIST_ON_EOS="${LIST_ON_EOS:-false}"
-AUTO_SAVE_COUNT="${AUTO_SAVE_COUNT:-25}"
-AUTO_SAVE_INTERVAL="${AUTO_SAVE_INTERVAL:-120}"
-COMPRESS_SAVE_FILES="${COMPRESS_SAVE_FILES:-true}"
-RCON_ENABLED="${RCON_ENABLED:-true}"
-RCON_PORT="${RCON_PORT:-25575}"
-RCON_PASSWORD="${RCON_PASSWORD:-}"
-AUTO_UPDATE="${AUTO_UPDATE:-true}"
-TZ="${TZ:-America/Sao_Paulo}"
-
-# BepInEx (Suporte a Mods)
-BEPINEX_ENABLED="${BEPINEX_ENABLED:-false}"
+GAME_MODE_TYPE="${GAME_MODE_TYPE:-PvP}"
 
 # =============================================================================
 # Funções
@@ -92,100 +75,37 @@ init_wine_fast() {
     
     if [ -f "${WINEPREFIX}/system.reg" ]; then
         log_info "Wine prefix já existe"
-    else
-        log_info "Criando Wine prefix mínimo..."
-        
-        # Criar estrutura mínima do Wine prefix manualmente (MUITO mais rápido)
-        mkdir -p "${WINEPREFIX}/drive_c/windows/system32"
-        mkdir -p "${WINEPREFIX}/drive_c/windows/syswow64"
-        mkdir -p "${WINEPREFIX}/drive_c/users/root/Temp"
-        mkdir -p "${WINEPREFIX}/drive_c/Program Files"
-        mkdir -p "${WINEPREFIX}/drive_c/Program Files (x86)"
-        
-        # Tentar inicializar Wine rapidamente (timeout de 30s)
-        log_info "Executando wineboot (timeout 60s)..."
-        timeout 60 box64 /opt/wine/bin/wineboot --init 2>&1 &
-        WINEBOOT_PID=$!
-        
-        # Aguardar um pouco e depois matar se ainda estiver rodando
-        sleep 10
-        
-        # Verificar se criou os arquivos básicos
-        if [ -d "${WINEPREFIX}/drive_c/windows" ]; then
-            log_success "Wine prefix básico criado!"
-            # Matar processos Wine extras se ainda estiverem rodando
-            box64 /opt/wine/bin/wineserver -k 2>/dev/null || true
-            sleep 2
-        else
-            log_warning "Continuando sem Wine prefix completo..."
-        fi
-    fi
-    
-    # CRITICAL FIX: Configurar DLL override no registro do Wine
-    # Isso é necessário para que o Doorstop/BepInEx funcione no ARM64
-    # WINEDLLOVERRIDES na env não é suficiente com Box64
-    configure_wine_dll_overrides
-    
-    return 0
-}
-
-# =============================================================================
-# Configura DLL overrides no registro do Wine para BepInEx
-# =============================================================================
-configure_wine_dll_overrides() {
-    if [ "${BEPINEX_ENABLED}" != "true" ]; then
         return 0
     fi
     
-    log_info "Configurando DLL overrides no registro do Wine (fix ARM64)..."
+    log_info "Criando Wine prefix mínimo..."
     
-    # Criar arquivo .reg com os overrides necessários
-    cat > /tmp/dll_overrides.reg << 'REGEOF'
-REGEDIT4
-
-[HKEY_CURRENT_USER\Software\Wine\DllOverrides]
-"winhttp"="native,builtin"
-"*winhttp"="native,builtin"
-"version"="native,builtin"
-"*version"="native,builtin"
-REGEOF
+    # Criar estrutura mínima do Wine prefix manualmente (MUITO mais rápido)
+    mkdir -p "${WINEPREFIX}/drive_c/windows/system32"
+    mkdir -p "${WINEPREFIX}/drive_c/windows/syswow64"
+    mkdir -p "${WINEPREFIX}/drive_c/users/root/Temp"
+    mkdir -p "${WINEPREFIX}/drive_c/Program Files"
+    mkdir -p "${WINEPREFIX}/drive_c/Program Files (x86)"
     
-    # Importar no registro do Wine
-    if [ -f "${WINEPREFIX}/system.reg" ]; then
-        cd "${WINEPREFIX}"
-        box64 /opt/wine/bin/wine regedit /tmp/dll_overrides.reg 2>/dev/null || true
-        
-        # Matar processos Wine após regedit
+    # Tentar inicializar Wine rapidamente (timeout de 30s)
+    log_info "Executando wineboot (timeout 60s)..."
+    timeout 60 box64 /opt/wine/bin/wineboot --init 2>&1 &
+    WINEBOOT_PID=$!
+    
+    # Aguardar um pouco e depois matar se ainda estiver rodando
+    sleep 10
+    
+    # Verificar se criou os arquivos básicos
+    if [ -d "${WINEPREFIX}/drive_c/windows" ]; then
+        log_success "Wine prefix básico criado!"
+        # Matar processos Wine extras se ainda estiverem rodando
         box64 /opt/wine/bin/wineserver -k 2>/dev/null || true
-        sleep 1
-        
-        log_success "DLL overrides configurados no registro!"
-    else
-        # Se Wine prefix não existe, adicionar direto no user.reg
-        log_warning "Wine prefix incompleto, adicionando override manualmente..."
-        
-        # Criar user.reg se não existir
-        if [ ! -f "${WINEPREFIX}/user.reg" ]; then
-            cat > "${WINEPREFIX}/user.reg" << 'USERREGEOF'
-WINE REGISTRY Version 2
-;; All keys relative to \\User\\S-1-5-21-0-0-0-1000
-USERREGEOF
-        fi
-        
-        # Adicionar override no user.reg se não existir
-        if ! grep -q "DllOverrides" "${WINEPREFIX}/user.reg" 2>/dev/null; then
-            cat >> "${WINEPREFIX}/user.reg" << 'OVERRIDEEOF'
-
-[Software\\Wine\\DllOverrides]
-"winhttp"="native,builtin"
-"*winhttp"="native,builtin"
-"version"="native,builtin"
-OVERRIDEEOF
-            log_success "DLL overrides adicionados ao user.reg!"
-        fi
+        sleep 2
+        return 0
     fi
     
-    rm -f /tmp/dll_overrides.reg
+    log_warning "Continuando sem Wine prefix completo..."
+    return 0
 }
 
 install_or_update_server() {
@@ -194,7 +114,7 @@ install_or_update_server() {
     local needs_download=false
     
     if [ -f "${SERVER_DIR}/VRisingServer.exe" ]; then
-        if [ "${AUTO_UPDATE}" = "true" ]; then
+        if [ "${AUTO_UPDATE:-true}" = "true" ]; then
             log_info "Servidor instalado. Verificando atualizações..."
         else
             log_success "Servidor já instalado! (AUTO_UPDATE=false, pulando verificação)"
@@ -274,34 +194,26 @@ configure_server() {
            --argjson port "${GAME_PORT}" \
            --argjson qport "${QUERY_PORT}" \
            --argjson maxusers "${MAX_USERS}" \
-           --argjson maxadmins "${MAX_ADMINS}" \
-           --argjson fps "${SERVER_FPS}" \
+           --argjson fps "${SERVER_FPS:-60}" \
            --arg save "${WORLD_NAME}" \
            --arg pass "${PASSWORD}" \
            --argjson master "${LIST_ON_MASTER_SERVER}" \
            --argjson eos "${LIST_ON_EOS}" \
-           --arg diff "${GAME_DIFFICULTY_PRESET}" \
-           --argjson autosave_count "${AUTO_SAVE_COUNT}" \
-           --argjson autosave_interval "${AUTO_SAVE_INTERVAL}" \
-           --argjson compress_saves "${COMPRESS_SAVE_FILES}" \
-           --argjson rcon_enabled "${RCON_ENABLED}" \
-           --argjson rcon_port "${RCON_PORT}" \
-           --arg rcon_pass "${RCON_PASSWORD}" \
+           --arg diff "${GAME_DIFFICULTY_PRESET:-Difficulty_Brutal}" \
+           --argjson rcon_enabled "${RCON_ENABLED:-true}" \
+           --argjson rcon_port "${RCON_PORT:-25575}" \
+           --arg rcon_pass "${RCON_PASSWORD:-}" \
            '.Name = $name |
             .Description = $desc |
             .Port = $port |
             .QueryPort = $qport |
             .MaxConnectedUsers = $maxusers |
-            .MaxConnectedAdmins = $maxadmins |
             .ServerFps = $fps |
             .SaveName = $save |
             .Password = $pass |
             .ListOnMasterServer = $master |
             .ListOnEOS = $eos |
             .GameDifficultyPreset = $diff |
-            .AutoSaveCount = $autosave_count |
-            .AutoSaveInterval = $autosave_interval |
-            .CompressSaveFiles = $compress_saves |
             .Rcon.Enabled = $rcon_enabled |
             .Rcon.Port = $rcon_port |
             .Rcon.Password = $rcon_pass' \
@@ -312,26 +224,16 @@ configure_server() {
         cat > "${SETTINGS_DIR}/ServerHostSettings.json" << EOF
 {
   "Name": "${SERVER_NAME}",
-  "Description": "${SERVER_DESCRIPTION}",
+  "Description": "${SERVER_DESCRIPTION:-Servidor dedicado brasileiro}",
   "Port": ${GAME_PORT},
   "QueryPort": ${QUERY_PORT},
   "MaxConnectedUsers": ${MAX_USERS},
-  "MaxConnectedAdmins": ${MAX_ADMINS},
-  "ServerFps": ${SERVER_FPS},
   "SaveName": "${WORLD_NAME}",
   "Password": "${PASSWORD}",
-  "Secure": true,
   "ListOnMasterServer": ${LIST_ON_MASTER_SERVER},
   "ListOnEOS": ${LIST_ON_EOS},
-  "AutoSaveCount": ${AUTO_SAVE_COUNT},
-  "AutoSaveInterval": ${AUTO_SAVE_INTERVAL},
-  "CompressSaveFiles": ${COMPRESS_SAVE_FILES},
-  "GameSettingsPreset": "",
-  "GameDifficultyPreset": "${GAME_DIFFICULTY_PRESET}",
-  "AdminOnlyDebugEvents": true,
-  "DisableDebugEvents": false,
-  "API": { "Enabled": false },
-  "Rcon": { "Enabled": ${RCON_ENABLED}, "Port": ${RCON_PORT}, "Password": "${RCON_PASSWORD}" }
+  "GameDifficultyPreset": "${GAME_DIFFICULTY_PRESET:-Difficulty_Brutal}",
+  "Rcon": { "Enabled": ${RCON_ENABLED:-true}, "Port": ${RCON_PORT:-25575}, "Password": "${RCON_PASSWORD:-}" }
 }
 EOF
     fi
@@ -352,153 +254,14 @@ EOF
     fi
 }
 
-# =============================================================================
-# BepInEx - Suporte a Mods
-# =============================================================================
-install_bepinex() {
-    if [ "${BEPINEX_ENABLED}" != "true" ]; then
-        log_info "BepInEx desabilitado (BEPINEX_ENABLED=${BEPINEX_ENABLED})"
-        return 0
-    fi
-    
-    log_info "=============================================="
-    log_info "Instalando/verificando BepInEx..."
-    log_info "=============================================="
-    
-    BEPINEX_SOURCE="/opt/bepinex/BepInExPack_V_Rising"
-    
-    # Verificar se BepInExPack existe
-    if [ ! -d "${BEPINEX_SOURCE}" ]; then
-        log_error "BepInExPack não encontrado em ${BEPINEX_SOURCE}"
-        log_error "Verifique se o Docker image foi construído corretamente"
-        return 1
-    fi
-    
-    # Copiar winhttp.dll (hook do Doorstop) - necessário para BepInEx injetar
-    if [ ! -f "${SERVER_DIR}/winhttp.dll" ]; then
-        log_info "Copiando winhttp.dll..."
-        cp "${BEPINEX_SOURCE}/winhttp.dll" "${SERVER_DIR}/"
-    fi
-    
-    # Copiar também como version.dll (fallback alternativo para Doorstop)
-    if [ ! -f "${SERVER_DIR}/version.dll" ]; then
-        log_info "Copiando version.dll (alternativa para Doorstop)..."
-        cp "${BEPINEX_SOURCE}/winhttp.dll" "${SERVER_DIR}/version.dll"
-    fi
-    
-    # CRITICAL: Copiar ambos DLLs para Wine prefix system32
-    # Isso é necessário porque Wine pode procurar DLLs no system32 antes do diretório do exe
-    if [ -d "${WINEPREFIX}/drive_c/windows/system32" ]; then
-        log_info "Copiando Doorstop DLLs para Wine system32 (fix ARM64)..."
-        cp "${BEPINEX_SOURCE}/winhttp.dll" "${WINEPREFIX}/drive_c/windows/system32/winhttp.dll"
-        cp "${BEPINEX_SOURCE}/winhttp.dll" "${WINEPREFIX}/drive_c/windows/system32/version.dll"
-    fi
-    
-    # Copiar doorstop_config.ini
-    if [ ! -f "${SERVER_DIR}/doorstop_config.ini" ]; then
-        log_info "Copiando doorstop_config.ini..."
-        cp "${BEPINEX_SOURCE}/doorstop_config.ini" "${SERVER_DIR}/"
-    fi
-    
-    # Copiar .doorstop_version
-    if [ ! -f "${SERVER_DIR}/.doorstop_version" ]; then
-        cp "${BEPINEX_SOURCE}/.doorstop_version" "${SERVER_DIR}/" 2>/dev/null || true
-    fi
-    
-    # Copiar dotnet runtime (necessário para BepInEx 6.x)
-    if [ ! -d "${SERVER_DIR}/dotnet" ]; then
-        log_info "Copiando .NET runtime..."
-        cp -r "${BEPINEX_SOURCE}/dotnet" "${SERVER_DIR}/"
-    fi
-    
-    # Criar estrutura do BepInEx
-    mkdir -p "${SERVER_DIR}/BepInEx/plugins"
-    mkdir -p "${SERVER_DIR}/BepInEx/config"
-    mkdir -p "${SERVER_DIR}/BepInEx/patchers"
-    
-    # Copiar BepInEx core (não sobrescrever se já existir)
-    if [ ! -d "${SERVER_DIR}/BepInEx/core" ]; then
-        log_info "Copiando BepInEx core..."
-        cp -r "${BEPINEX_SOURCE}/BepInEx/core" "${SERVER_DIR}/BepInEx/"
-    fi
-    
-    # Copiar config padrão se não existir
-    if [ ! -f "${SERVER_DIR}/BepInEx/config/BepInEx.cfg" ]; then
-        log_info "Copiando configuração padrão do BepInEx..."
-        cp -r "${BEPINEX_SOURCE}/BepInEx/config/"* "${SERVER_DIR}/BepInEx/config/" 2>/dev/null || true
-    fi
-    
-    # Copiar mods do diretório /data/mods para BepInEx/plugins
-    mkdir -p /data/mods
-    local mod_count=0
-    
-    if [ "$(ls -A /data/mods 2>/dev/null)" ]; then
-        log_info "Copiando mods de /data/mods para BepInEx/plugins..."
-        cp -r /data/mods/* "${SERVER_DIR}/BepInEx/plugins/" 2>/dev/null || true
-        
-        # Contar e listar mods instalados
-        mod_count=$(find "${SERVER_DIR}/BepInEx/plugins/" -name "*.dll" -type f 2>/dev/null | wc -l)
-        log_info "Mods instalados (${mod_count} plugins):"
-        find "${SERVER_DIR}/BepInEx/plugins/" -name "*.dll" -type f 2>/dev/null | while read dll; do
-            log_info "  → $(basename "$dll")"
-        done
-    else
-        log_info "Nenhum mod encontrado em /data/mods"
-        log_info "  Dica: Coloque arquivos .dll na pasta mods/ e reinicie"
-    fi
-    
-    # ==========================================================================
-    # CRITICAL: Usar interop pré-gerado para ARM64
-    # A geração de interop trava no Box64 devido ao Parallel.ForEach
-    # Solução: Usar assemblies pré-gerados em x86_64 via GitHub Actions
-    # ==========================================================================
-    
-    PREBUILT_INTEROP="/opt/bepinex/prebuilt/interop"
-    
-    if [ -d "${SERVER_DIR}/BepInEx/interop" ] && [ "$(ls -A ${SERVER_DIR}/BepInEx/interop 2>/dev/null)" ]; then
-        # Interop já existe - usar existente
-        local interop_count=$(ls -1 "${SERVER_DIR}/BepInEx/interop/" 2>/dev/null | wc -l)
-        log_success "Cache de interop existente (${interop_count} assemblies)"
-        log_info "Inicialização será rápida!"
-        
-    elif [ -d "${PREBUILT_INTEROP}" ] && [ "$(ls -A ${PREBUILT_INTEROP} 2>/dev/null)" ]; then
-        # Usar interop pré-gerado
-        log_info "Instalando interop pré-gerado (x86_64 → ARM64)..."
-        mkdir -p "${SERVER_DIR}/BepInEx/interop"
-        cp -r "${PREBUILT_INTEROP}"/* "${SERVER_DIR}/BepInEx/interop/"
-        
-        local interop_count=$(ls -1 "${SERVER_DIR}/BepInEx/interop/" 2>/dev/null | wc -l)
-        log_success "Interop pré-gerado instalado! (${interop_count} assemblies)"
-        log_info "Geração no ARM64 evitada - inicialização será rápida!"
-        
-    else
-        # Nenhum interop disponível - vai tentar gerar (pode travar no ARM64)
-        log_warning "=========================================="
-        log_warning "ATENÇÃO: Interop pré-gerado NÃO encontrado!"
-        log_warning "=========================================="
-        log_warning "O BepInEx tentará gerar assemblies de interop."
-        log_warning "Isso pode TRAVAR no ARM64 devido ao Box64."
-        log_warning ""
-        log_warning "Solução recomendada:"
-        log_warning "  1. Rodar GitHub Actions: generate-interop.yml"
-        log_warning "  2. Baixar artifact e colocar em bepinex/prebuilt/interop/"
-        log_warning "  3. Rebuildar a imagem Docker"
-        log_warning ""
-        log_warning "Tentando mesmo assim... (timeout 15min)"
-    fi
-    
-    log_success "BepInEx configurado!"
-    log_info "Box64 otimizado: DYNAREC_STRONGMEM=2, DYNAREC_WAIT=1"
-}
-
 start_server() {
     log_info "=============================================="
     log_info "Iniciando servidor V Rising..."
     log_info "=============================================="
     log_info "Server Name: ${SERVER_NAME}"
     log_info "Game Port: ${GAME_PORT} | Query Port: ${QUERY_PORT}"
-    log_info "Max Users: ${MAX_USERS} | Max Admins: ${MAX_ADMINS}"
-    log_info "Difficulty: ${GAME_DIFFICULTY_PRESET} 💀"
+    log_info "Max Users: ${MAX_USERS} | Game Mode: ${GAME_MODE_TYPE}"
+    log_info "Difficulty: ${GAME_DIFFICULTY_PRESET:-Difficulty_Brutal} 💀"
     log_info "=============================================="
     
     cd "${SERVER_DIR}"
@@ -557,5 +320,4 @@ init_display || exit 1
 init_wine_fast
 install_or_update_server || exit 1
 configure_server
-install_bepinex
 start_server

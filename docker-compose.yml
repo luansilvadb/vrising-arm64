@@ -33,19 +33,14 @@ services:
       - LIST_ON_MASTER_SERVER=${LIST_ON_MASTER_SERVER:-true}
       - LIST_ON_EOS=${LIST_ON_EOS:-true}
 
-      # Capacidade
-      - MAX_ADMINS=${MAX_ADMINS:-5}
+      # Modo de jogo
+      - GAME_MODE_TYPE=${GAME_MODE_TYPE:-PvP}
 
       # Preset de dificuldade (Difficulty_Easy, Difficulty_Normal, Difficulty_Brutal)
       - GAME_DIFFICULTY_PRESET=${GAME_DIFFICULTY_PRESET:-Difficulty_Brutal}
 
       # FPS do servidor (30 = menos CPU, 60 = mais fluido)
       - SERVER_FPS=${SERVER_FPS:-60}
-
-      # Auto Save
-      - AUTO_SAVE_COUNT=${AUTO_SAVE_COUNT:-25}
-      - AUTO_SAVE_INTERVAL=${AUTO_SAVE_INTERVAL:-120}
-      - COMPRESS_SAVE_FILES=${COMPRESS_SAVE_FILES:-true}
 
       # Atualização automática no restart
       - AUTO_UPDATE=${AUTO_UPDATE:-true}
@@ -54,9 +49,6 @@ services:
       - RCON_ENABLED=${RCON_ENABLED:-true}
       - RCON_PORT=${RCON_PORT:-25575}
       - RCON_PASSWORD=${RCON_PASSWORD:-}
-
-      # BepInEx (Suporte a Mods)
-      - BEPINEX_ENABLED=${BEPINEX_ENABLED:-false}
 
       # Timezone
       - TZ=${TZ:-America/Sao_Paulo}
@@ -71,8 +63,6 @@ services:
     volumes:
       # Volume único para todos os dados (server, saves, wine, logs)
       - vrising-data:/data
-      # Volume para mods (BepInEx plugins) - fácil de gerenciar
-      - ./mods:/data/mods
 
     # Recursos (ajuste conforme necessário)
     # EasyPanel gerencia isso automaticamente, mas você pode definir limites

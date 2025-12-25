@@ -19,31 +19,16 @@ LABEL description="V Rising Dedicated Server for ARM64 using Box64/Wine"
 ENV DEBIAN_FRONTEND=noninteractive \
     # Configurações do servidor
     SERVER_NAME="V Rising Server" \
-    SERVER_DESCRIPTION="Servidor dedicado brasileiro" \
     WORLD_NAME="world1" \
     PASSWORD="" \
     MAX_USERS="40" \
-    MAX_ADMINS="5" \
-    SERVER_FPS="60" \
-    GAME_DIFFICULTY_PRESET="Difficulty_Brutal" \
     GAME_PORT="9876" \
     QUERY_PORT="9877" \
     # Lista de servidores públicos
     LIST_ON_MASTER_SERVER="false" \
     LIST_ON_EOS="false" \
-    # Auto Save
-    AUTO_SAVE_COUNT="25" \
-    AUTO_SAVE_INTERVAL="120" \
-    COMPRESS_SAVE_FILES="true" \
-    # RCON
-    RCON_ENABLED="true" \
-    RCON_PORT="25575" \
-    RCON_PASSWORD="" \
-    # Atualização automática
-    AUTO_UPDATE="true" \
-    # BepInEx (Suporte a Mods)
-    BEPINEX_ENABLED="false" \
-    BEPINEX_VERSION="1.733.2" \
+    # Modo de jogo (PvP ou PvE)
+    GAME_MODE_TYPE="PvP" \
     # Timezone
     TZ="America/Sao_Paulo" \
     # Diretórios
@@ -56,8 +41,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     WINEARCH="win64" \
     WINEDEBUG="-all" \
     # Forçar dnsapi builtin para evitar __res_query crash
-    # winhttp=n,b é necessário para BepInEx funcionar
-    WINEDLLOVERRIDES="winhttp=n,b;mscoree=d;mshtml=d;dnsapi=b" \
+    WINEDLLOVERRIDES="mscoree=d;mshtml=d;dnsapi=b" \
     # Display virtual
     DISPLAY=":0" \
     # Box settings - habilitar WOW64
@@ -66,10 +50,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     BOX86_NOBANNER="1" \
     BOX64_NOBANNER="1" \
     BOX64_WINE_PRELOADED="1" \
-    BOX64_LD_LIBRARY_PATH="/opt/wine/lib/wine/x86_64-unix:/opt/wine/lib" \
-    # Otimizações Box64 para BepInEx (melhora estabilidade com Il2CppInterop)
-    BOX64_DYNAREC_STRONGMEM="2" \
-    BOX64_DYNAREC_WAIT="1"
+    BOX64_LD_LIBRARY_PATH="/opt/wine/lib/wine/x86_64-unix:/opt/wine/lib"
 
 # =============================================================================
 # Instalação de dependências adicionais
@@ -107,9 +88,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxext6 \
     libxrender1 \
     libsm6 \
-    # Utilitários para BepInEx
-    unzip \
-    nano \
     && rm -rf /var/lib/apt/lists/* \
     && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen 2>/dev/null || true \
     && locale-gen 2>/dev/null || true
@@ -167,27 +145,9 @@ RUN mkdir -p /opt/steamcmd && \
     echo "SteamCMD pré-inicializado!"
 
 # =============================================================================
-# Baixar BepInExPack para suporte a mods
-# =============================================================================
-RUN mkdir -p /opt/bepinex && \
-    cd /opt/bepinex && \
-    wget -q "https://thunderstore.io/package/download/BepInEx/BepInExPack_V_Rising/1.733.2/" \
-    -O bepinex.zip && \
-    unzip -q bepinex.zip && \
-    rm bepinex.zip && \
-    echo "BepInExPack V Rising instalado em /opt/bepinex"
-
-# =============================================================================
-# Copiar interop pré-gerado (se disponível)
-# Isso evita a geração que trava no ARM64/Box64
-# Gerar via: GitHub Actions → generate-interop.yml
-# =============================================================================
-COPY bepinex/prebuilt/ /opt/bepinex/prebuilt/
-
-# =============================================================================
 # Criar diretórios necessários
 # =============================================================================
-RUN mkdir -p /data/server /data/saves /data/logs /data/wine /data/mods /scripts
+RUN mkdir -p /data/server /data/saves /data/logs /data/wine /scripts
 
 # =============================================================================
 # Copiar scripts e configurações
