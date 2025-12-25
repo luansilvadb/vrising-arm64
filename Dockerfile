@@ -40,6 +40,10 @@ RUN mkdir -p /wine && \
     rm -f /wine/lib/wine/x86_64-unix/dnsapi.so && \
     rm -f /wine/lib64/wine/x86_64-unix/dnsapi.so
 
+# Download Wine Mono (Necessário para BepInEx/.NET)
+# Versão 9.4.0 é compatível com Wine 9+
+RUN wget -q "https://dl.winehq.org/wine/wine-mono/9.4.0/wine-mono-9.4.0-x86.msi" -O /wine/mono.msi
+
 # =============================================================================
 # STAGE 3: Imagem de Runtime (FINAL)
 # =============================================================================

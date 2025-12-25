@@ -26,9 +26,10 @@ VRISING_APP_ID="${VRISING_APP_ID:-1829350}"
 # Wine - DEBUG ATIVADO PARA DIAGNOSTICO
 export WINEPREFIX="${WINEPREFIX:-/data/wine}"
 export WINEARCH="win64"
-export WINEDEBUG="err+all"
+export WINEDEBUG="err+all,fixme+all"
 # dnsapi=b força uso de builtin para evitar erro __res_query
-export WINEDLLOVERRIDES="mscoree=d;mshtml=d;dnsapi=b"
+# REMOVIDO mscoree=d para permitir Wine Mono
+export WINEDLLOVERRIDES="mshtml=d;dnsapi=b"
 export DISPLAY=":0"
 
 # Box settings
@@ -98,6 +99,14 @@ init_wine_fast() {
     # Verificar se criou os arquivos básicos
     if [ -d "${WINEPREFIX}/drive_c/windows" ]; then
         log_success "Wine prefix básico criado!"
+        
+        # Instalar Wine Mono se o MSI existir
+        if [ -f "/opt/wine/mono.msi" ] && [ ! -d "${WINEPREFIX}/drive_c/windows/mono/mono-2.0" ]; then
+            log_info "Instalando Wine Mono (Necessário para BepInEx)..."
+            box64 /opt/wine/bin/wine msiexec /i /opt/wine/mono.msi /qn /norestart
+            log_success "Wine Mono instalado!"
+        fi
+
         # Matar processos Wine extras se ainda estiverem rodando
         box64 /opt/wine/bin/wineserver -k 2>/dev/null || true
         sleep 2
