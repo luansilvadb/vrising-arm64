@@ -71,30 +71,41 @@ check_ntsync() {
     log_ntsync "The NTSYNC module has been present in the Linux kernel since version 6.14"
     log_ntsync "Kernel version on this machine is -- $(uname -r)"
     
-    # Verificar exatamente como tsx-cloud faz
-    /usr/bin/lsof /dev/ntsync 2>/dev/null || true
-    
-    if /sbin/lsmod 2>/dev/null | grep -q ntsync; then
-        if /usr/bin/lsof /dev/ntsync > /dev/null 2>&1; then
-            log_success "NTSYNC Module is present in kernel, ntsync is running."
+    # Método 1: Verificar se /dev/ntsync existe e é acessível
+    # Este é o método mais confiável dentro de containers
+    if [ -c "/dev/ntsync" ]; then
+        # Device existe como character device
+        if [ -r "/dev/ntsync" ] && [ -w "/dev/ntsync" ]; then
+            log_success "NTSYNC device /dev/ntsync exists and is accessible!"
             NTSYNC_AVAILABLE="true"
         else
-            log_info "NTSYNC Module is present in kernel, but ntsync is NOT running. No problem."
-            NTSYNC_AVAILABLE="true"
+            log_warning "NTSYNC device exists but is not readable/writable. Check permissions."
+            log_info "Try: chmod 666 /dev/ntsync (on host)"
+            NTSYNC_AVAILABLE="false"
         fi
     elif [ -e "/dev/ntsync" ]; then
-        # Device existe mas módulo não aparece via lsmod (pode ser built-in)
-        log_info "Device /dev/ntsync exists, assuming ntsync is built-in kernel."
+        # Existe mas não é character device (estranho, mas vamos tentar)
+        log_info "Device /dev/ntsync exists (non-char), assuming ntsync available."
         NTSYNC_AVAILABLE="true"
     else
-        log_info "NTSYNC Module is NOT present in kernel. No problem — ntsync is not necessary."
-        log_info ""
-        log_info "Para habilitar NTSync (melhor performance):"
-        log_info "  1. Kernel Linux 6.14+ no host"
-        log_info "  2. sudo modprobe ntsync"
-        log_info "  3. echo \"ntsync\" | sudo tee /etc/modules-load.d/ntsync.conf"
-        log_info ""
-        NTSYNC_AVAILABLE="false"
+        # Método 2: Tentar via lsmod (backup, pode não funcionar em containers)
+        if /sbin/lsmod 2>/dev/null | grep -q ntsync; then
+            log_info "NTSYNC module detected via lsmod, but /dev/ntsync not mapped."
+            log_warning "Add 'devices: - /dev/ntsync:/dev/ntsync' to docker-compose.yml"
+            NTSYNC_AVAILABLE="false"
+        else
+            log_info "NTSYNC not available. This is fine — server works without it."
+            log_info ""
+            log_info "Para habilitar NTSync (melhor performance):"
+            log_info "  1. Kernel Linux 6.14+ no HOST (uname -r)"
+            log_info "  2. No HOST: sudo modprobe ntsync"
+            log_info "  3. No HOST: echo 'ntsync' | sudo tee /etc/modules-load.d/ntsync.conf"
+            log_info "  4. No docker-compose.yml:"
+            log_info "     devices:"
+            log_info "       - /dev/ntsync:/dev/ntsync"
+            log_info ""
+            NTSYNC_AVAILABLE="false"
+        fi
     fi
     
     export NTSYNC_AVAILABLE
