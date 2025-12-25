@@ -229,29 +229,40 @@ Este servidor suporta **mods** através do framework [BepInEx](https://github.co
    ```
    vrising-arm64/
    └── mods/
-       ├── YourMod.dll
-       └── AnotherMod.dll
+       ├── Bloodstone.dll           # Recomendado: API base
+       ├── VampireCommandFramework.dll  # Recomendado: Comandos
+       ├── SeuMod.dll
+       └── ...
    ```
 
 3. **Reiniciar o servidor**
 
-> ⚠️ **Primeira execução**: A primeira inicialização com BepInEx pode demorar **5-10 minutos** enquanto gera o cache de interoperabilidade.
+> ⚠️ **Primeira execução (ARM64)**: A primeira inicialização com BepInEx pode demorar **5-15 minutos** enquanto gera o cache de interoperabilidade. Isso é normal!
+
+### Mods Essenciais (Dependências)
+
+| Mod | Descrição |
+|-----|-----------|
+| **Bloodstone** | API base - muitos mods dependem dele |
+| **VampireCommandFramework** | Framework para comandos de chat |
 
 ### Mods Populares
 
 | Mod | Descrição |
 |-----|-----------|
-| **Bloodstone** | Framework base para outros mods |
-| **VampireCommandFramework** | Comandos de chat customizados |
-| **KindredLogistics** | Sistema de logística avançado |
+| **KindredLogistics** | Sistema de logística entre baús |
 | **KindredSchematics** | Blueprints de construção |
+| **KindredCommands** | Comandos administrativos avançados |
+| **XPRising** | Sistema de XP e progressão |
 
 ### Onde Encontrar Mods
 
 - **Thunderstore**: https://thunderstore.io/c/v-rising/
 - **V Rising Mods**: https://vrisingmods.com/
 
-> 📖 Para mais detalhes, veja [bepinex/README.md](bepinex/README.md)
+> 📖 Para mais detalhes, veja:
+> - [Guia de Mods](bepinex/README.md)
+> - [Troubleshooting ARM64](docs/BEPINEX-ARM64-TROUBLESHOOTING.md)
 
 ## 🌐 Conectando ao Servidor
 

@@ -37,6 +37,9 @@ export BOX64_LOG=0
 export BOX86_NOBANNER=1
 export BOX64_NOBANNER=1
 export BOX64_LD_LIBRARY_PATH="/opt/wine/lib64:/opt/wine/lib"
+# Otimizações Box64 para BepInEx (melhora estabilidade com Il2CppInterop)
+export BOX64_DYNAREC_STRONGMEM=2
+export BOX64_DYNAREC_WAIT=1
 
 # Configurações do servidor
 SERVER_NAME="${SERVER_NAME:-V Rising Server}"
@@ -350,22 +353,36 @@ install_bepinex() {
     
     # Copiar mods do diretório /data/mods para BepInEx/plugins
     mkdir -p /data/mods
+    local mod_count=0
+    
     if [ "$(ls -A /data/mods 2>/dev/null)" ]; then
         log_info "Copiando mods de /data/mods para BepInEx/plugins..."
         cp -r /data/mods/* "${SERVER_DIR}/BepInEx/plugins/" 2>/dev/null || true
         
-        # Listar mods instalados
-        log_info "Mods instalados:"
-        ls -la "${SERVER_DIR}/BepInEx/plugins/" | grep -E '\.dll$' | while read line; do
-            log_info "  → $(echo $line | awk '{print $NF}')"
+        # Contar e listar mods instalados
+        mod_count=$(find "${SERVER_DIR}/BepInEx/plugins/" -name "*.dll" -type f 2>/dev/null | wc -l)
+        log_info "Mods instalados (${mod_count} plugins):"
+        find "${SERVER_DIR}/BepInEx/plugins/" -name "*.dll" -type f 2>/dev/null | while read dll; do
+            log_info "  → $(basename "$dll")"
         done
     else
         log_info "Nenhum mod encontrado em /data/mods"
+        log_info "  Dica: Coloque arquivos .dll na pasta mods/ e reinicie"
+    fi
+    
+    # Verificar se interop já foi gerado (acelera reinicializações)
+    if [ -d "${SERVER_DIR}/BepInEx/interop" ] && [ "$(ls -A ${SERVER_DIR}/BepInEx/interop 2>/dev/null)" ]; then
+        local interop_count=$(ls -1 "${SERVER_DIR}/BepInEx/interop/" 2>/dev/null | wc -l)
+        log_success "Cache de interop existente (${interop_count} assemblies)"
+        log_info "Inicialização será mais rápida!"
+    else
+        log_warning "Cache de interop NÃO encontrado"
+        log_warning "Primeira inicialização - pode demorar 5-15 min (ARM64)"
+        log_warning "BepInEx irá gerar assemblies de interoperabilidade..."
     fi
     
     log_success "BepInEx configurado!"
-    log_warning "NOTA: A primeira inicialização com BepInEx pode demorar 5-10 min!"
-    log_warning "      BepInEx precisa gerar cache de interoperabilidade."
+    log_info "Box64 otimizado: DYNAREC_STRONGMEM=2, DYNAREC_WAIT=1"
 }
 
 start_server() {

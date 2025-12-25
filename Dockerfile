@@ -66,7 +66,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
     BOX86_NOBANNER="1" \
     BOX64_NOBANNER="1" \
     BOX64_WINE_PRELOADED="1" \
-    BOX64_LD_LIBRARY_PATH="/opt/wine/lib/wine/x86_64-unix:/opt/wine/lib"
+    BOX64_LD_LIBRARY_PATH="/opt/wine/lib/wine/x86_64-unix:/opt/wine/lib" \
+    # Otimizações Box64 para BepInEx (melhora estabilidade com Il2CppInterop)
+    BOX64_DYNAREC_STRONGMEM="2" \
+    BOX64_DYNAREC_WAIT="1"
 
 # =============================================================================
 # Instalação de dependências adicionais

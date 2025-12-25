@@ -314,11 +314,16 @@ docker exec vrising-server ls -la /data/server/winhttp.dll
 
 - [x] Estrutura básica de suporte a mods
 - [x] Documentação de uso
-- [ ] Testar em ambiente real
-- [ ] Avaliar patch Il2CppInterop para ARM64
+- [x] Testar em ambiente real (2025-12-25 ✅ Servidor iniciou com sucesso!)
+- [x] Otimizações Box64 para estabilidade (DYNAREC_STRONGMEM, DYNAREC_WAIT)
+- [x] Guia de troubleshooting ARM64 específico
+- [x] Script de download automático do Thunderstore (`scripts/download-mod.sh`)
+- [x] Guia do KindredLogistics (mod de automação)
+- [ ] Avaliar patch Il2CppInterop para ARM64 (em análise)
 - [ ] Adicionar suporte a pré-geração de interop
 - [ ] Script de backup de configs de mods
 
 ---
 
-*Documento criado em 2025-12-25. Atualizar conforme necessário.*
+*Documento criado em 2025-12-25. Última atualização: 2025-12-25.*
+
