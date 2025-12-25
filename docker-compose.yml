@@ -70,26 +70,21 @@ services:
       - vrising-data:/data
 
     # =========================================================================
-    # NTSYNC SUPPORT (Opcional)
+    # NTSYNC SUPPORT (Habilitado)
     # =========================================================================
-    # Descomente esta seção se seu host suportar NTSync.
+    # NTSync melhora performance em +50-100% quando disponível.
     #
-    # Requisitos:
+    # Requisitos no HOST:
     # 1. Kernel Linux 6.14+ (Ubuntu 25.04+, Fedora 42+, etc)
     # 2. Módulo ntsync carregado:
     #    - Temporário: sudo modprobe ntsync
     #    - Permanente: echo "ntsync" | sudo tee /etc/modules-load.d/ntsync.conf
     # 3. Device /dev/ntsync deve existir
     #
-    # Verificar se NTSync está disponível:
-    #    ls -la /dev/ntsync
-    #    lsmod | grep ntsync
-    #
-    # Sem NTSync, o servidor funciona normalmente.
-    # Com NTSync, você terá melhor performance e menor uso de CPU.
+    # ⚠️ Se o host NÃO tiver NTSync, comente as linhas abaixo ou o container falhará
     # =========================================================================
-    # devices:
-    #   - /dev/ntsync:/dev/ntsync
+    devices:
+      - /dev/ntsync:/dev/ntsync
 
     # Recursos (ajuste conforme necessário)
     # EasyPanel gerencia isso automaticamente, mas você pode definir limites
