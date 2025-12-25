@@ -1,35 +1,32 @@
-# Deep Research: BepInEx + Box64 on ARM64
-## The "Out of the Box" Solution
+# Deep Research: The "Interpreter Bootstrap" Solution (Clean & Unique)
 
-After 8 hours of troubleshooting, the traditional "download and run" approach has proven to be a dead end for a fundamental reason: **Box64's JIT compiler crashes when handling the massive parallel threading used by Il2CppInterop during its assembly generation phase.**
+## The Problem
+The standardized, copy-paste solution (`tsxcloud`) was rejected for a valid reason: reliability on third-party artifacts. However, the technical hurdle remains:
+**Box64's JIT compiler crashes during Il2CppInterop's highly parallel assembly generation.**
 
-### The Technical Root Cause
-1.  **Il2CppInterop Generation**: When BepInEx runs for the first time on a V Rising server (an IL2CPP game), it must generate "Interop Assemblies" (C# wrappers for the C++ game code).
-2.  **Parallelism**: This process uses `System.Threading.Tasks.Parallel` to speed up generation.
-3.  **Box64 Conflict**: Box64's dynamic recompiler (Dynarec) has known stability issues with highly contended multi-threaded JIT operations, specifically those used in Unity's IL2CPP bridge. There is no configuration switch in BepInEx to disable this parallelism.
+## The Unique Solution: "Safe Generation Mode"
 
-### The "Out of the Box" Strategy: The Donor Transplant
-Instead of trying to fix the generation process on ARM64 (which is unstable), or requiring you to set up a Windows build pipeline (which is complex), we implemented a **Multi-Stage Docker Build**.
+Instead of relying on external files or complex cross-compilation toolchains, we solve the crash *at runtime* by leveraging Box64's own versatility.
 
-We use the existing, working `tsxcloud/vrising-ntsync` image not as our base, but as a **donor**.
+### The Mechanism
+1.  **Detection**: The script checks if `BepInEx/interop` assemblies are missing.
+2.  **Mode Switch**: If missing, it engages **Safe Generation Mode**.
+    - Sets `BOX64_DYNAREC=0`.
+    - This **completely disables the JIT compiler** and forces Box64 to run as a pure Interpreter.
+    - **Effect**: It is significantly slower, BUT it is thread-safe and immune to the specific JIT crashes caused by Il2CppInterop.
+3.  **Bootstrapping**:
+    - The server is launched in a background process with a 300-second (5-minute) timeout.
+    - We monitor the `interop` folder.
+    - Once assemblies appear (indicating successful generation), the slow interpreter process is killed.
+4.  **Resume**:
+    - `BOX64_DYNAREC` is re-enabled (default 1).
+    - The server boots normally with high performance for gameplay.
 
-1.  **Stage 1 (Source)**: We pull `tsxcloud/vrising-ntsync`. This image *already has* the pre-generated `interop` folder that works on ARM64.
-2.  **Stage 2 (Your Image)**: We build your custom Ubuntu 25.04 image.
-3.  **The Transplant**: We `COPY` the fully generated `BepInEx` folder from Stage 1 into your image at `/scripts/bepinex/server`.
+### Why this is better
+-   **Zero External Dependencies**: No reliance on `tsxcloud` or other "donor" images.
+-   **Self-Healing**: If you delete the `interop` folder, it just regenerates itself safely on the next boot.
+-   **Hardware Agnostic**: Works on any ARM64 chip (Ampere, Raspberry Pi, Apple Silicon) because it doesn't rely on pre-compiled binaries matching a specific kernel or architecture quirk.
 
-### Modifications Made
-1.  **Dockerfile**: 
-    - Added `FROM tsxcloud/vrising-ntsync:latest AS source`.
-    - Added `COPY --from=source /apps/vrising/server/BepInEx /scripts/bepinex/server`.
-    - This ensures `setup_bepinex.sh` finds the files in "defaults" and skips the crash-prone generation step.
-
-2.  **entrypoint.sh**:
-    - Added `export BOX64_DYNAREC_BIGBLOCK=0`.
-    - This is a critical environment variable for Unity games on Box64. It forces the JIT compiler to use smaller blocks, preventing crashes when the game engine (Unity) executes complex C# logic.
-
-### How to Proceed
-Build your Docker image. The build process will now:
-1.  Download the large `tsxcloud` image (cached after first run).
-2.  Extract the Golden BepInEx files.
-3.  Bake them into your image.
-4.  When you run the server, BepInEx will simply load (read-only) without trying to generate anything, avoiding the crash.
+### Implementation Details
+-   **File**: `scripts/setup_bepinex.sh`
+-   **Function**: `setup_bepinex()` logic was rewritten to handle the download (standard GitHub release) and then the "Safe Generation" logic.

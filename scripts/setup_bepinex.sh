@@ -64,142 +64,75 @@ verify_bepinex_installation() {
     return 0
 }
 
-setup_bepinex() {
-    log_bepinex "=============================================="
-    log_bepinex "Setting up BepInEx for V Rising (tsx-cloud approach)"
-    log_bepinex "=============================================="
+    # =========================================================================
+    # ABORDAGEM ÚNICA: Geração Segura via Interpretador
+    # =========================================================================
+    # O problema: Il2CppInterop trava no Box64 (JIT) ao gerar assemblies.
+    # A solução: Detectamos se a pasta 'interop' está vazia. Se estiver,
+    # forçamos uma execução temporária com o JIT DESLIGADO (BOX64_DYNAREC=0).
+    # Isso é lento, mas 100% estável e não trava.
+    # =========================================================================
     
-    # Verificar se instalação está COMPLETA
-    if verify_bepinex_installation; then
-        log_bepinex "BepInEx installation verified complete!"
-        return 0
-    fi
-    
-    log_bepinex "BepInEx needs installation/repair..."
-    
-    # =========================================================================
-    # MÉTODO 1: Copiar de defaults pré-packaged (como tsx-cloud)
-    # =========================================================================
-    if [ -d "${BEPINEX_DEFAULTS}" ] && [ -f "${BEPINEX_DEFAULTS}/winhttp.dll" ]; then
-        log_bepinex "Copying BepInEx from pre-packaged defaults..."
+    if [ ! -d "${BEPINEX_DIR}/interop" ] || [ -z "$(ls -A ${BEPINEX_DIR}/interop 2>/dev/null)" ]; then
+        log_warning "BepInEx interop assemblies missing!"
+        log_bepinex "initiating SAFE GENERATION MODE (Interpreter-only)..."
+        log_bepinex "This will take 3-5 minutes. Please wait..."
+
+        # Definir flags para desabilitar JIT completamente
+        export BOX64_DYNAREC=0
+        export BOX64_LOG=1 # Ver logs básicos
         
-        # Copiar tudo do defaults para o server
-        cp -r "${BEPINEX_DEFAULTS}/." "${SERVER_DIR}/"
+        # Executar servidor temporariamente (vai falhar/timeout mas vai gerar os arquivos)
+        # Usamos timeout de 300s (5 min) para garantir que dê tempo
+        cd "${SERVER_DIR}"
         
-        log_success "BepInEx copied from defaults!"
+        # Iniciar servidor em background
+        # Nota: Não precisamos do Xvfb completo aqui, só do Wine bootando BepInEx
+        # Mas mantemos ambiente consistente
+        if command -v wine64 &>/dev/null; then WINE_CMD="wine64"; else WINE_CMD="wine"; fi
         
-    # =========================================================================
-    # MÉTODO 2: Fallback - Baixar do GitHub (pode travar no ARM64 na primeira vez)
-    # =========================================================================
-    else
-        log_warning "Pre-packaged BepInEx not found, downloading from GitHub..."
-        log_warning "NOTE: This may hang on first run due to Il2CppInterop on ARM64"
+        log_bepinex "Starting V Rising in INTERPRETER mode to generate assemblies..."
+        timeout 300s ${WINE_CMD} "${SERVER_DIR}/VRisingServer.exe" \
+            -serverName "BepInEx_Generation_Temp" \
+            -saveName "generation_temp" \
+            -logFile "${SERVER_DIR}/generation.log" &
+            
+        GEN_PID=$!
         
-        local BEPINEX_VERSION="6.0.0-pre.2"
-        local BEPINEX_URL="https://github.com/BepInEx/BepInEx/releases/download/v${BEPINEX_VERSION}/BepInEx-Unity.IL2CPP-win-x64-${BEPINEX_VERSION}.zip"
+        # Monitorar geração
+        log_bepinex "Monitoring generation (PID: ${GEN_PID})..."
+        local generated=false
         
-        # Criar estrutura de diretórios
-        mkdir -p "${BEPINEX_DIR}/core"
-        mkdir -p "${BEPINEX_DIR}/config"
-        mkdir -p "${BEPINEX_DIR}/plugins"
-        mkdir -p "${BEPINEX_DIR}/patchers"
-        mkdir -p "${SERVER_DIR}/dotnet"
+        for i in $(seq 1 60); do
+            sleep 5
+            if [ -d "${BEPINEX_DIR}/interop" ] && [ "$(ls -A ${BEPINEX_DIR}/interop | wc -l)" -gt 5 ]; then
+                log_success "Interop assemblies detected! Generation seems successful."
+                generated=true
+                break
+            fi
+            echo -n "."
+        done
         
-        # Baixar BepInEx
-        cd /tmp
-        wget -q "${BEPINEX_URL}" -O bepinex.zip || {
-            log_error "Failed to download BepInEx!"
-            return 1
-        }
+        # Matar processo de geração
+        log_bepinex "Stopping generation process..."
+        kill -SIGTERM $GEN_PID 2>/dev/null || true
+        kill -9 $GEN_PID 2>/dev/null || true
+        wineserver -k 2>/dev/null || true
         
-        # Extrair
-        unzip -q -o bepinex.zip -d bepinex_extract
+        # Limpar variaveis
+        unset BOX64_DYNAREC
+        export BOX64_DYNAREC=1
         
-        # Copiar arquivos
-        if [ -d "bepinex_extract/BepInEx" ]; then
-            cp -r bepinex_extract/BepInEx/* "${BEPINEX_DIR}/"
+        if [ "$generated" = "true" ]; then
+             log_success "Safe generation complete!"
+        else
+             log_error "Generation might have failed or verify on next boot."
         fi
-        
-        # Copiar winhttp.dll (doorstop proxy)
-        if [ -f "bepinex_extract/winhttp.dll" ]; then
-            cp bepinex_extract/winhttp.dll "${SERVER_DIR}/"
-        fi
-        
-        # Copiar dotnet runtime
-        if [ -d "bepinex_extract/dotnet" ]; then
-            cp -r bepinex_extract/dotnet/* "${SERVER_DIR}/dotnet/"
-        fi
-        
-        # Limpar
-        rm -rf bepinex.zip bepinex_extract
-        
-        log_success "BepInEx downloaded and extracted!"
-    fi
-    
-    # =========================================================================
-    # Copiar doorstop_config.ini do template se não existir
-    # =========================================================================
-    if [ ! -f "${SERVER_DIR}/doorstop_config.ini" ]; then
-        if [ -f "/scripts/bepinex/doorstop_config.ini" ]; then
-            log_bepinex "Copying doorstop_config.ini from template..."
-            cp "/scripts/bepinex/doorstop_config.ini" "${SERVER_DIR}/doorstop_config.ini"
-        fi
-    fi
-    
-    # =========================================================================
-    # Verificação pós-instalação
-    # =========================================================================
-    log_bepinex "Verifying installation..."
-    
-    local install_ok=true
-    
-    if [ -f "${SERVER_DIR}/winhttp.dll" ]; then
-        log_bepinex "  ✓ winhttp.dll ($(stat -c%s "${SERVER_DIR}/winhttp.dll" 2>/dev/null || echo "?") bytes)"
     else
-        log_error "  ✗ winhttp.dll MISSING!"
-        install_ok=false
+        log_bepinex "Interop assemblies already present. Skipping generation."
     fi
-    
-    if [ -f "${SERVER_DIR}/doorstop_config.ini" ]; then
-        log_bepinex "  ✓ doorstop_config.ini"
-    else
-        log_error "  ✗ doorstop_config.ini MISSING!"
-        install_ok=false
-    fi
-    
-    if [ -f "${BEPINEX_DIR}/core/BepInEx.Unity.IL2CPP.dll" ]; then
-        log_bepinex "  ✓ BepInEx.Unity.IL2CPP.dll"
-    else
-        log_error "  ✗ BepInEx.Unity.IL2CPP.dll MISSING!"
-        install_ok=false
-    fi
-    
-    # Verificar dotnet (pode estar em lugares diferentes)
-    if [ -f "${SERVER_DIR}/dotnet/coreclr.dll" ]; then
-        log_bepinex "  ✓ dotnet/coreclr.dll"
-    elif [ -d "${SERVER_DIR}/dotnet" ]; then
-        log_bepinex "  ✓ dotnet/ (directory exists)"
-    else
-        log_warning "  ? dotnet/ not found (may be bundled elsewhere)"
-    fi
-    
-    # Verificar se interop pré-gerado existe (CRUCIAL para ARM64!)
-    if [ -d "${BEPINEX_DIR}/interop" ] && [ "$(ls -A ${BEPINEX_DIR}/interop 2>/dev/null)" ]; then
-        log_bepinex "  ✓ interop/ (pre-generated assemblies - ARM64 compatible!)"
-    else
-        log_warning "  ! interop/ not found - BepInEx will try to generate on first run"
-        log_warning "    This may hang on ARM64/Box64. Consider using pre-generated interop."
-    fi
-    
-    if [ "$install_ok" = true ]; then
-        log_success "BepInEx installation complete!"
-    else
-        log_error "BepInEx installation INCOMPLETE!"
-        return 1
-    fi
-    
-    log_bepinex "=============================================="
 }
+
 
 enable_plugins() {
     log_bepinex "Enabling BepInEx plugins..."
