@@ -295,12 +295,27 @@ start_server() {
     export PATH="/opt/wine/bin:${PATH}"
     export BOX64_PATH="/opt/wine/bin:/usr/local/bin:/usr/bin"
     
-    # Executar via box64 (path agora é resolvido pelo sistema, pois instalamos via apt)
-    exec box64 /opt/wine/bin/wine "${SERVER_DIR}/VRisingServer.exe" \
+    # Executar via box64 em background e conectar ao log
+    touch "/data/logs/VRisingServer.log"
+    log_info "Iniciando processo do servidor e monitorando logs..."
+    
+    box64 /opt/wine/bin/wine "${SERVER_DIR}/VRisingServer.exe" \
         -persistentDataPath "${SAVES_DIR}" \
         -serverName "${SERVER_NAME}" \
         -saveName "${WORLD_NAME}" \
-        -logFile "/data/logs/VRisingServer.log"
+        -logFile "/data/logs/VRisingServer.log" &
+    
+    SERVER_PID=$!
+    
+    # Aguardar criar o log e depois seguir
+    timeout 30 sh -c 'until [ -s "/data/logs/VRisingServer.log" ]; do sleep 1; done'
+    
+    # Mostrar logs do jogo no console do Docker
+    tail -f "/data/logs/VRisingServer.log" &
+    TAIL_PID=$!
+    
+    # Esperar o processo do servidor
+    wait $SERVER_PID
 }
 
 shutdown_server() {
