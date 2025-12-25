@@ -36,7 +36,7 @@ export BOX86_LOG=0
 export BOX64_LOG=0
 export BOX86_NOBANNER=1
 export BOX64_NOBANNER=1
-export BOX64_LD_LIBRARY_PATH="/opt/wine/lib64:/opt/wine/lib"
+export BOX64_LD_LIBRARY_PATH="/opt/wine/lib/wine/x86_64-unix:/opt/wine/lib"
 
 # Configurações do servidor
 SERVER_NAME="${SERVER_NAME:-V Rising Server}"
@@ -133,7 +133,7 @@ install_or_update_server() {
     cd "${STEAMCMD_DIR}"
     
     local attempt=1
-    local max_attempts=3  # Reduzido: SteamCMD já está pré-inicializado no build
+    local max_attempts=5  # SteamCMD inicializa no primeiro uso
     
     while [ $attempt -le $max_attempts ]; do
         if [ $attempt -le 2 ]; then
@@ -286,8 +286,8 @@ start_server() {
     export PATH="/opt/wine/bin:${PATH}"
     export BOX64_PATH="/opt/wine/bin:/usr/local/bin:/usr/bin"
     
-    # Executar via box64 com caminho completo (usar wine, não wine64 - WOW64 é unificado)
-    exec /usr/local/bin/box64 /opt/wine/bin/wine "${SERVER_DIR}/VRisingServer.exe" \
+    # Executar via box64 (path agora é resolvido pelo sistema, pois instalamos via apt)
+    exec box64 /opt/wine/bin/wine "${SERVER_DIR}/VRisingServer.exe" \
         -persistentDataPath "${SAVES_DIR}" \
         -serverName "${SERVER_NAME}" \
         -saveName "${WORLD_NAME}" \
