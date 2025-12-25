@@ -1,22 +1,20 @@
 # =============================================================================
 # V Rising Dedicated Server - Docker Compose (NTSync Edition)
 # =============================================================================
-# Este compose tem suporte opcional a NTSync para melhor performance.
+# NTSync HABILITADO por padrão para melhor performance (+50-100% FPS).
 #
-# Requisitos para NTSync:
-# 1. Host com kernel Linux 6.14+ (Ubuntu 25.04+ ou similar)
+# ⚠️ Requisitos no HOST para NTSync funcionar:
+# 1. Kernel Linux 6.14+ (Ubuntu 25.04+ ou similar)
 # 2. Módulo ntsync carregado: sudo modprobe ntsync
-# 3. Descomentar a seção "devices" abaixo
+# 3. Device /dev/ntsync deve existir
 #
-# Sem NTSync, o servidor funciona normalmente com performance padrão.
+# Se o host NÃO tiver NTSync, comente as linhas 84-85 ou o container falhará.
 # =============================================================================
 
 services:
   vrising:
     build:
       context: .
-      # Para usar versão com NTSync, mude para:
-      # dockerfile: Dockerfile.ntsync
       dockerfile: Dockerfile
     container_name: vrising-server
     restart: unless-stopped
