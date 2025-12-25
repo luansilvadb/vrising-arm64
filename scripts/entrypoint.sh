@@ -23,20 +23,29 @@ SAVES_DIR="${SAVES_DIR:-/data/saves}"
 SETTINGS_DIR="${SAVES_DIR}/Settings"
 VRISING_APP_ID="${VRISING_APP_ID:-1829350}"
 
-# Wine - DEBUG ATIVADO PARA DIAGNOSTICO
+# Configuração de Logs baseada na variável DEBUG
+if [ "${DEBUG}" = "true" ] || [ "${DEBUG}" = "1" ]; then
+    echo "[WARN] Modo DEBUG ativado! O servidor iniciará mais lentamente devido aos logs detalhados."
+    export WINEDEBUG="err+all,fixme+all"
+    export BOX86_LOG=1
+    export BOX64_LOG=1
+    # export BOX86_NOBANNER=0
+    # export BOX64_NOBANNER=0
+else
+    # Modo Produção (Rápido)
+    export WINEDEBUG="-all"
+    export BOX86_LOG=0
+    export BOX64_LOG=0
+    export BOX86_NOBANNER=1
+    export BOX64_NOBANNER=1
+fi
+
 export WINEPREFIX="${WINEPREFIX:-/data/wine}"
 export WINEARCH="win64"
-export WINEDEBUG="-all"
 # dnsapi=b força uso de builtin para evitar erro __res_query
 # REMOVIDO mscoree=d para permitir Wine Mono
 export WINEDLLOVERRIDES="mshtml=d;dnsapi=b"
 export DISPLAY=":0"
-
-# Box settings
-export BOX86_LOG=0
-export BOX64_LOG=0
-export BOX86_NOBANNER=1
-export BOX64_NOBANNER=1
 export BOX64_LD_LIBRARY_PATH="/opt/wine/lib/wine/x86_64-unix:/opt/wine/lib"
 
 # Configurações do servidor
