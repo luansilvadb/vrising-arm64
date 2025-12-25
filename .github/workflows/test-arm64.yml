@@ -1,0 +1,68 @@
+name: Test ARM64 Build
+
+on:
+  push:
+    branches: [main, develop, test]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:  # Permite rodar manualmente
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build ARM64 Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/arm64
+          push: false
+          load: true
+          tags: vrising-arm64:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Container Startup
+        run: |
+          echo "🧪 Testing container startup..."
+          docker run --platform linux/arm64 -d \
+            --name vrising-test \
+            -e SERVER_NAME="Test Server" \
+            -e DRY_RUN=true \
+            vrising-arm64:test
+          
+          # Aguarda 30 segundos para inicialização
+          sleep 30
+          
+          # Verifica se o container ainda está rodando
+          if docker ps | grep -q vrising-test; then
+            echo "✅ Container iniciou com sucesso!"
+            docker logs vrising-test --tail 50
+          else
+            echo "❌ Container falhou!"
+            docker logs vrising-test
+            exit 1
+          fi
+          
+          docker stop vrising-test
+
+      - name: Build Summary
+        run: |
+          echo "## 🎮 V Rising ARM64 Build" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Build ARM64 concluído com sucesso!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** vrising-arm64:test" >> $GITHUB_STEP_SUMMARY
+          echo "**Platform:** linux/arm64" >> $GITHUB_STEP_SUMMARY
