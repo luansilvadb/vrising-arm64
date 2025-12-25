@@ -269,16 +269,25 @@ docker restart vrising-server
 | 2025-12-24 | Box64 atualizado para v0.3.8 |
 | 2025-12-24 | SteamCMD pré-inicialização no build |
 | 2025-12-24 | Servidor funcionando! ✅ |
+| 2025-12-25 | **Suporte a mods via BepInEx** 🔌 |
 
 ---
 
-## 12. Links Úteis
+## 12. Documentos Relacionados
+
+- [SPECS-002: Suporte a Mods com BepInEx](SPECS-002-bepinex-mods.md)
+
+---
+
+## 13. Links Úteis
 
 - [V Rising Dedicated Server Guide](https://github.com/StunlockStudios/vrising-dedicated-server-instructions)
 - [Box64 GitHub](https://github.com/ptitSeb/box64)
 - [Wine WOW64](https://wiki.winehq.org/Wine64)
 - [Kron4ek Wine Builds](https://github.com/Kron4ek/Wine-Builds)
+- [BepInEx GitHub](https://github.com/BepInEx/BepInEx)
+- [Thunderstore V Rising Mods](https://thunderstore.io/c/v-rising/)
 
 ---
 
-*Documento gerado em 2025-12-24. Atualizar conforme necessário.*
+*Documento atualizado em 2025-12-25.*

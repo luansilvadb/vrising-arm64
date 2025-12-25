@@ -41,6 +41,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     RCON_PASSWORD="" \
     # Atualização automática
     AUTO_UPDATE="true" \
+    # BepInEx (Suporte a Mods)
+    BEPINEX_ENABLED="false" \
+    BEPINEX_VERSION="1.733.2" \
     # Timezone
     TZ="America/Sao_Paulo" \
     # Diretórios
@@ -53,7 +56,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     WINEARCH="win64" \
     WINEDEBUG="-all" \
     # Forçar dnsapi builtin para evitar __res_query crash
-    WINEDLLOVERRIDES="mscoree=d;mshtml=d;dnsapi=b" \
+    # winhttp=n,b é necessário para BepInEx funcionar
+    WINEDLLOVERRIDES="winhttp=n,b;mscoree=d;mshtml=d;dnsapi=b" \
     # Display virtual
     DISPLAY=":0" \
     # Box settings - habilitar WOW64
@@ -157,9 +161,20 @@ RUN mkdir -p /opt/steamcmd && \
     echo "SteamCMD pré-inicializado!"
 
 # =============================================================================
+# Baixar BepInExPack para suporte a mods
+# =============================================================================
+RUN mkdir -p /opt/bepinex && \
+    cd /opt/bepinex && \
+    wget -q "https://thunderstore.io/package/download/BepInEx/BepInExPack_V_Rising/1.733.2/" \
+    -O bepinex.zip && \
+    unzip -q bepinex.zip && \
+    rm bepinex.zip && \
+    echo "BepInExPack V Rising instalado em /opt/bepinex"
+
+# =============================================================================
 # Criar diretórios necessários
 # =============================================================================
-RUN mkdir -p /data/server /data/saves /data/logs /data/wine /scripts
+RUN mkdir -p /data/server /data/saves /data/logs /data/wine /data/mods /scripts
 
 # =============================================================================
 # Copiar scripts e configurações

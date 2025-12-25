@@ -55,6 +55,9 @@ services:
       - RCON_PORT=${RCON_PORT:-25575}
       - RCON_PASSWORD=${RCON_PASSWORD:-}
 
+      # BepInEx (Suporte a Mods)
+      - BEPINEX_ENABLED=${BEPINEX_ENABLED:-false}
+
       # Timezone
       - TZ=${TZ:-America/Sao_Paulo}
 
@@ -68,6 +71,8 @@ services:
     volumes:
       # Volume único para todos os dados (server, saves, wine, logs)
       - vrising-data:/data
+      # Volume para mods (BepInEx plugins) - fácil de gerenciar
+      - ./mods:/data/mods
 
     # Recursos (ajuste conforme necessário)
     # EasyPanel gerencia isso automaticamente, mas você pode definir limites

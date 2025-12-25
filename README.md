@@ -111,6 +111,7 @@ Para configurações de **gameplay**, use o File Mount do EasyPanel com `ServerG
 | `RCON_ENABLED` | `true` | Habilitar RCON |
 | `RCON_PORT` | `25575` | Porta RCON (TCP) |
 | `RCON_PASSWORD` | ` ` (vazio) | Senha RCON |
+| `BEPINEX_ENABLED` | `false` | Habilitar suporte a mods |
 | `AUTO_UPDATE` | `true` | Atualizar servidor no restart |
 | `TZ` | `America/Sao_Paulo` | Timezone |
 
@@ -119,6 +120,11 @@ Para configurações de **gameplay**, use o File Mount do EasyPanel com `ServerG
 ```
 /data/
 ├── server/          # Arquivos do servidor V Rising
+│   ├── BepInEx/     # Framework de mods (quando habilitado)
+│   │   ├── plugins/ # Mods instalados
+│   │   └── config/  # Configurações dos mods
+│   └── VRisingServer.exe
+├── mods/            # Pasta para seus mods (volume montado)
 ├── saves/           # Saves do mundo
 │   └── Settings/    # Configurações do servidor
 │       ├── ServerHostSettings.json
@@ -207,6 +213,45 @@ Para editar configurações diretamente no EasyPanel:
    - Commit e push para o GitHub
 
 > 💡 **Dica**: O arquivo `config/` contém templates prontos para uso!
+
+## 🔌 Mods (BepInEx)
+
+Este servidor suporta **mods** através do framework [BepInEx](https://github.com/BepInEx/BepInEx).
+
+### Habilitar Mods
+
+1. **Ativar BepInEx** nas variáveis de ambiente:
+   ```bash
+   BEPINEX_ENABLED=true
+   ```
+
+2. **Adicionar mods** (.dll) na pasta `mods/`:
+   ```
+   vrising-arm64/
+   └── mods/
+       ├── YourMod.dll
+       └── AnotherMod.dll
+   ```
+
+3. **Reiniciar o servidor**
+
+> ⚠️ **Primeira execução**: A primeira inicialização com BepInEx pode demorar **5-10 minutos** enquanto gera o cache de interoperabilidade.
+
+### Mods Populares
+
+| Mod | Descrição |
+|-----|-----------|
+| **Bloodstone** | Framework base para outros mods |
+| **VampireCommandFramework** | Comandos de chat customizados |
+| **KindredLogistics** | Sistema de logística avançado |
+| **KindredSchematics** | Blueprints de construção |
+
+### Onde Encontrar Mods
+
+- **Thunderstore**: https://thunderstore.io/c/v-rising/
+- **V Rising Mods**: https://vrisingmods.com/
+
+> 📖 Para mais detalhes, veja [bepinex/README.md](bepinex/README.md)
 
 ## 🌐 Conectando ao Servidor
 
@@ -307,6 +352,13 @@ vrising-arm64/
 │   ├── ServerGameSettings.json   # Configurações de gameplay
 │   ├── ServerHostSettings.json   # Configurações do host (backup)
 │   └── README.md                 # Documentação dos configs
+├── bepinex/             # 🔌 Documentação de mods
+│   └── README.md        # Guia de instalação de mods
+├── mods/                # 📦 Pasta para mods (.dll)
+│   └── .gitkeep
+├── docs/                # 📖 Documentação técnica
+│   ├── SPECS-001-foundation.md    # Arquitetura base
+│   └── SPECS-002-bepinex-mods.md  # Arquitetura de mods
 ├── scripts/
 │   └── entrypoint.sh    # Script de inicialização
 └── README.md            # Esta documentação
@@ -317,6 +369,7 @@ vrising-arm64/
 - [Box64](https://github.com/ptitSeb/box64) - Emulador x86_64 para ARM64
 - [Box86](https://github.com/ptitSeb/box86) - Emulador x86 para ARM
 - [Wine](https://www.winehq.org/) - Camada de compatibilidade Windows
+- [BepInEx](https://github.com/BepInEx/BepInEx) - Framework de modding Unity
 - [Stunlock Studios](https://www.stunlockstudios.com/) - Desenvolvedores do V Rising
 - [TrueOsiris/docker-vrising](https://github.com/TrueOsiris/docker-vrising) - Inspiração
 

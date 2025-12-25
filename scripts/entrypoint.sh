@@ -60,6 +60,9 @@ RCON_PASSWORD="${RCON_PASSWORD:-}"
 AUTO_UPDATE="${AUTO_UPDATE:-true}"
 TZ="${TZ:-America/Sao_Paulo}"
 
+# BepInEx (Suporte a Mods)
+BEPINEX_ENABLED="${BEPINEX_ENABLED:-false}"
+
 # =============================================================================
 # Funções
 # =============================================================================
@@ -283,6 +286,88 @@ EOF
     fi
 }
 
+# =============================================================================
+# BepInEx - Suporte a Mods
+# =============================================================================
+install_bepinex() {
+    if [ "${BEPINEX_ENABLED}" != "true" ]; then
+        log_info "BepInEx desabilitado (BEPINEX_ENABLED=${BEPINEX_ENABLED})"
+        return 0
+    fi
+    
+    log_info "=============================================="
+    log_info "Instalando/verificando BepInEx..."
+    log_info "=============================================="
+    
+    BEPINEX_SOURCE="/opt/bepinex/BepInExPack_V_Rising"
+    
+    # Verificar se BepInExPack existe
+    if [ ! -d "${BEPINEX_SOURCE}" ]; then
+        log_error "BepInExPack não encontrado em ${BEPINEX_SOURCE}"
+        log_error "Verifique se o Docker image foi construído corretamente"
+        return 1
+    fi
+    
+    # Copiar winhttp.dll (hook do Doorstop) - necessário para BepInEx injetar
+    if [ ! -f "${SERVER_DIR}/winhttp.dll" ]; then
+        log_info "Copiando winhttp.dll..."
+        cp "${BEPINEX_SOURCE}/winhttp.dll" "${SERVER_DIR}/"
+    fi
+    
+    # Copiar doorstop_config.ini
+    if [ ! -f "${SERVER_DIR}/doorstop_config.ini" ]; then
+        log_info "Copiando doorstop_config.ini..."
+        cp "${BEPINEX_SOURCE}/doorstop_config.ini" "${SERVER_DIR}/"
+    fi
+    
+    # Copiar .doorstop_version
+    if [ ! -f "${SERVER_DIR}/.doorstop_version" ]; then
+        cp "${BEPINEX_SOURCE}/.doorstop_version" "${SERVER_DIR}/" 2>/dev/null || true
+    fi
+    
+    # Copiar dotnet runtime (necessário para BepInEx 6.x)
+    if [ ! -d "${SERVER_DIR}/dotnet" ]; then
+        log_info "Copiando .NET runtime..."
+        cp -r "${BEPINEX_SOURCE}/dotnet" "${SERVER_DIR}/"
+    fi
+    
+    # Criar estrutura do BepInEx
+    mkdir -p "${SERVER_DIR}/BepInEx/plugins"
+    mkdir -p "${SERVER_DIR}/BepInEx/config"
+    mkdir -p "${SERVER_DIR}/BepInEx/patchers"
+    
+    # Copiar BepInEx core (não sobrescrever se já existir)
+    if [ ! -d "${SERVER_DIR}/BepInEx/core" ]; then
+        log_info "Copiando BepInEx core..."
+        cp -r "${BEPINEX_SOURCE}/BepInEx/core" "${SERVER_DIR}/BepInEx/"
+    fi
+    
+    # Copiar config padrão se não existir
+    if [ ! -f "${SERVER_DIR}/BepInEx/config/BepInEx.cfg" ]; then
+        log_info "Copiando configuração padrão do BepInEx..."
+        cp -r "${BEPINEX_SOURCE}/BepInEx/config/"* "${SERVER_DIR}/BepInEx/config/" 2>/dev/null || true
+    fi
+    
+    # Copiar mods do diretório /data/mods para BepInEx/plugins
+    mkdir -p /data/mods
+    if [ "$(ls -A /data/mods 2>/dev/null)" ]; then
+        log_info "Copiando mods de /data/mods para BepInEx/plugins..."
+        cp -r /data/mods/* "${SERVER_DIR}/BepInEx/plugins/" 2>/dev/null || true
+        
+        # Listar mods instalados
+        log_info "Mods instalados:"
+        ls -la "${SERVER_DIR}/BepInEx/plugins/" | grep -E '\.dll$' | while read line; do
+            log_info "  → $(echo $line | awk '{print $NF}')"
+        done
+    else
+        log_info "Nenhum mod encontrado em /data/mods"
+    fi
+    
+    log_success "BepInEx configurado!"
+    log_warning "NOTA: A primeira inicialização com BepInEx pode demorar 5-10 min!"
+    log_warning "      BepInEx precisa gerar cache de interoperabilidade."
+}
+
 start_server() {
     log_info "=============================================="
     log_info "Iniciando servidor V Rising..."
@@ -349,4 +434,5 @@ init_display || exit 1
 init_wine_fast
 install_or_update_server || exit 1
 configure_server
+install_bepinex
 start_server
