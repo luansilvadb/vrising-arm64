@@ -9,6 +9,9 @@ services:
     security_opt: [ seccomp:unconfined ]
     cap_add: [ SYS_PTRACE ]
     env_file: .env
+    ports:
+      - "9876:9876/udp"
+      - "9877:9877/udp"
     environment:
       - SERVER_NAME=${SERVER_NAME:-V Rising FEX Server}
       - SAVE_NAME=${SAVE_NAME:-world1}
@@ -32,14 +35,9 @@ services:
       - RCON_ENABLED=${RCON_ENABLED:-true}
       - RCON_PORT=${RCON_PORT:-25575}
       - RCON_PASSWORD=${RCON_PASSWORD:-}
-    volumes: [ vrising-data:/data ]
-    deploy:
-      resources:
-        limits:
-          memory: 8192M
-    ports:
-      - "9876:9876/udp"
-      - "9877:9877/udp"
+      - ENABLE_MODS=true
+    volumes:
+      - vrising-data:/data
 
 volumes:
   vrising-data:

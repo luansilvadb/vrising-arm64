@@ -99,6 +99,16 @@ cleanup_mods() {
     fi
 }
 
+install_mods() {
+    if [[ "$ENABLE_MODS" == "true" && -d "/mnt/custom_mods" ]]; then
+        info "Installing/Updating mods from /mnt/custom_mods..."
+        # Copy everything from mount to server dir
+        # We use force copy to ensure we have the latest version from host
+        cp -rf /mnt/custom_mods/* "$SERVER_DIR/" || warn "Some files could not be copied"
+        ok "Mods installed to $SERVER_DIR"
+    fi
+}
+
 configure_settings() {
     info "Applying server settings..."
     local settings_dir="/data/save-data/Settings"
@@ -163,6 +173,7 @@ mkdir -p "$SERVER_DIR" "$WINEPREFIX"
 setup_wine
 setup_steamcmd
 update_server
+install_mods
 cleanup_mods
 configure_settings
 
