@@ -38,6 +38,13 @@ setup_wine() {
     export DOORSTOP_ENABLE=TRUE
     export DOORSTOP_TARGET_ASSEMBLY="BepInEx/core/BepInEx.Unity.IL2CPP.dll"
     
+    # Debug: Enable verbose logging
+    export WINEDEBUG="+loaddll,+module"
+    export DOORSTOP_DEBUG=1
+    export DOTNET_CLI_TELEMETRY_OPTOUT=1
+    export COMPlus_LogEnable=1
+    export COMPlus_LogLevel=10
+    
     # Force lowercase for critical dlls to ensure Wine overrides work
     # We use a temporary name to avoid "same file" error
     if [ -f "$SERVER_DIR/winhttp.dll" ]; then 
