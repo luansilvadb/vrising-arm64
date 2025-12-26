@@ -89,7 +89,8 @@ RUN mkdir -p /steamcmd && \
     curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C /steamcmd
 
 # 6. Environment Variables
-ENV STEAMCMD_DIR="/steamcmd"
+# Point key directories to /data volume for persistence
+ENV STEAMCMD_DIR="/data/steamcmd"
 ENV SERVER_DIR="/data/server"
 ENV WINEPREFIX="/data/wineprefix"
 ENV WINEARCH="win64"
@@ -97,10 +98,10 @@ ENV DISPLAY=":0"
 # Configure FEX to allow some optimizations (optional)
 # ENV FEX_APP_DATA_LOCATION="/root/.fex-emu"
 
-# 7. Add Scripts
-COPY scripts/start.sh /start.sh
-COPY scripts/update_server.sh /update_server.sh
-RUN chmod +x /start.sh /update_server.sh
+# 7. Add Startup Script
+COPY start.sh /
+# Ensure executable permissions and fix Windows line endings (CRLF) just in case
+RUN sed -i 's/\r$//' /start.sh && chmod +x /start.sh
 
 # 8. Expose Ports (V Rising Default: 9876, 9877 UDP)
 EXPOSE 9876/udp 9877/udp 9876/tcp 9877/tcp

@@ -14,9 +14,31 @@ services:
     environment:
       - SERVER_NAME=Velion
       - SAVE_NAME=world1
+      - SERVER_DESCRIPTION=Bem-vindo ao Reino de Velion! | Desperte, Vampiro. Seu legado começa agora.
+      - LIST_ON_MASTER_SERVER=true
 
       - GAME_PORT=9876
       - QUERY_PORT=9877
+
+      # Configuraçoes Avançadas (Mapeadas do JSON do usuário)
+      - MAX_CONNECTED_USERS=100
+      - MAX_CONNECTED_ADMINS=5
+      - SERVER_FPS=60
+      - SERVER_PASSWORD=
+      - SECURE=true
+      - AUTO_SAVE_COUNT=25
+      - AUTO_SAVE_INTERVAL=120
+      - COMPRESS_SAVE_FILES=true
+      - GAME_SETTINGS_PRESET=
+      - GAME_DIFFICULTY_PRESET=Difficulty_Brutal
+      - ADMIN_ONLY_DEBUG_EVENTS=true
+      - DISABLE_DEBUG_EVENTS=false
+
+      # API & RCON
+      - API_ENABLED=false
+      - RCON_ENABLED=true
+      - RCON_PORT=25575
+      - RCON_PASSWORD=master.007,1
     volumes:
       - vrising-data:/data
     # Easypanel generally likes resources limits, but FEX needs some CPU
