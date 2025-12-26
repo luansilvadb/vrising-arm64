@@ -158,13 +158,16 @@ update_server() {
 remove_mod_artifacts() {
     section "Sanitizing Server (Vanilla Enforcement)"
     
-    # Comprehensive list of mod loader artifacts to remove
+    # Comprehensive list of mod loader artifacts to remove (including backups)
     local mod_artifacts=(
         "BepInEx"
         "doorstop_config.ini"
         "winhttp.dll"
+        "winhttp.dll.bak"
         "winmm.dll"
+        "winmm.dll.bak"
         "version.dll"
+        "version.dll.bak"
         "doorstop_libs"
         ".doorstop_version"
         "MelonLoader"
@@ -303,6 +306,24 @@ pre_launch_checks() {
 # Main Execution
 # =============================================================================
 
+fix_permissions() {
+    section "Fixing Permissions"
+    
+    # Ensure /data and all subdirectories are owned by root (the user running the container)
+    if [ -d "/data" ]; then
+        local current_owner
+        current_owner=$(stat -c '%U' /data 2>/dev/null || echo "unknown")
+        
+        if [ "$current_owner" != "root" ]; then
+            info "Fixing ownership of /data (was: $current_owner)..."
+            chown -R root:root /data
+            ok "Permissions fixed"
+        else
+            ok "Permissions OK (owner: root)"
+        fi
+    fi
+}
+
 main() {
     printf '\n\033[1;35m╔═══════════════════════════════════════════════════════════════╗\033[0m\n'
     printf '\033[1;35m║     V Rising Dedicated Server (ARM64/FEX) - Diagnostics       ║\033[0m\n'
@@ -312,6 +333,7 @@ main() {
     info "Architecture: $(uname -m)"
     
     mkdir -p "$SERVER_DIR" "$WINEPREFIX"
+    fix_permissions
     
     setup_wine
     setup_steamcmd
