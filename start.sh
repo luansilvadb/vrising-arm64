@@ -34,7 +34,7 @@ setup_wine() {
     for _ in $(seq 1 50); do [ -e /tmp/.X11-unix/X0 ] && break; sleep 0.1; done
     [ -e /tmp/.X11-unix/X0 ] && ok "Xvfb ready" || warn "Xvfb socket not found"
     
-    export WINEDLLOVERRIDES="mscoree,mshtml="
+    export WINEDLLOVERRIDES="mscoree,mshtml=;winhttp=n,b"
     
     if [ ! -d "$WINEPREFIX/drive_c" ]; then
         info "Initializing Wine prefix..."
