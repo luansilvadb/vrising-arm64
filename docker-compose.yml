@@ -1,94 +1,30 @@
-# =============================================================================
-# V Rising Dedicated Server - Docker Compose
-# =============================================================================
-# Para usar com EasyPanel:
-# 1. Faça push deste repositório para o GitHub
-# 2. No EasyPanel, crie um novo serviço do tipo "Docker"
-# 3. Aponte para o repositório e branch main
-# 4. Configure as variáveis de ambiente conforme necessário
-# =============================================================================
+version: '3.8'
 
 services:
   vrising:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: vrising-server
+    build: .
+    image: vrising-fex:latest
+    container_name: vrising-fex
     restart: unless-stopped
-
-    # Variáveis de ambiente para configuração
+    # FEX-Emu requires unconfined seccomp to handle signal masking and syscall emulation correctly
+    security_opt:
+      - seccomp:unconfined
+    cap_add:
+      - SYS_PTRACE
     environment:
-      # Configurações básicas do servidor
-      - SERVER_NAME=${SERVER_NAME:-Velion}
-      - SERVER_DESCRIPTION=${SERVER_DESCRIPTION:-Servidor dedicado brasileiro - Bem-vindo ao Velion!}
-      - WORLD_NAME=${WORLD_NAME:-world1}
-      - PASSWORD=${PASSWORD:-}
-      - MAX_USERS=${MAX_USERS:-100}
+      - SERVER_NAME=Velion
+      - SAVE_NAME=world1
 
-      # Portas do jogo
-      - GAME_PORT=${GAME_PORT:-9876}
-      - QUERY_PORT=${QUERY_PORT:-9877}
-
-      # Visibilidade do servidor (true = aparece na lista pública)
-      - LIST_ON_MASTER_SERVER=${LIST_ON_MASTER_SERVER:-true}
-      - LIST_ON_EOS=${LIST_ON_EOS:-true}
-
-      # Modo de jogo
-      - GAME_MODE_TYPE=${GAME_MODE_TYPE:-PvP}
-
-      # Preset de dificuldade (Difficulty_Easy, Difficulty_Normal, Difficulty_Brutal)
-      - GAME_DIFFICULTY_PRESET=${GAME_DIFFICULTY_PRESET:-Difficulty_Brutal}
-
-      # FPS do servidor (30 = menos CPU, 60 = mais fluido)
-      - SERVER_FPS=${SERVER_FPS:-60}
-
-      # Atualização automática no restart
-      - AUTO_UPDATE=${AUTO_UPDATE:-true}
-
-      # RCON (acesso admin remoto)
-      - RCON_ENABLED=${RCON_ENABLED:-true}
-      - RCON_PORT=${RCON_PORT:-25575}
-      - RCON_PASSWORD=${RCON_PASSWORD:-}
-
-      # Timezone
-      - TZ=${TZ:-America/Sao_Paulo}
-
-      # BepInEx / Mods (ARM64-Friendly)
-      # Defina como true para habilitar suporte a mods
-      - ENABLE_PLUGINS=${ENABLE_PLUGINS:-false}
-
-      # Debug mode (deixa servidor LENTO, use apenas para diagnóstico)
-      - DEBUG=${DEBUG:-false}
-
-    # Portas expostas (UDP para jogo, TCP para RCON)
-    ports:
-      - "${GAME_PORT:-9876}:${GAME_PORT:-9876}/udp"
-      - "${QUERY_PORT:-9877}:${QUERY_PORT:-9877}/udp"
-      - "${RCON_PORT:-25575}:${RCON_PORT:-25575}/tcp"
-
-    # Volumes para persistência de dados
+      - GAME_PORT=9876
+      - QUERY_PORT=9877
     volumes:
-      # Volume único para todos os dados (server, saves, wine, logs)
       - vrising-data:/data
-
-    # Recursos (ajuste conforme necessário)
-    # EasyPanel gerencia isso automaticamente, mas você pode definir limites
+    # Easypanel generally likes resources limits, but FEX needs some CPU
     deploy:
       resources:
         limits:
-          memory: 8G
-        reservations:
-          memory: 4G
-
-    # Healthcheck
-    healthcheck:
-      test: [ "CMD", "nc", "-zu", "localhost", "${GAME_PORT:-9876}" ]
-      interval: 60s
-      timeout: 10s
-      start_period: 900s
-      retries: 3
-
-# Volumes nomeados para persistência
-volumes:
-  vrising-data:
-    driver: local
+          memory: 8192M
+    ports:
+      - "9876:9876/udp"
+      - "9877:9877/udp"
+volumes:\n  vrising-data:

@@ -1,194 +1,112 @@
-# =============================================================================
-# V Rising Dedicated Server - ARM64 Docker Image (Optimized & Independent)
-# =============================================================================
-# Este Dockerfile usa Debian Sid (Unstable) para obter Box64 dos repositórios
-# oficiais, eliminando tempo de compilação sem depender de imagens de terceiros.
-#
-# Otimizações:
-# - Box64: Instalado via apt (debian:sid) -> 0 min build time
-# - Box86: Compilado do source (necessário para SteamCMD) -> ~5-8 min
-# - Wine: Mantido Kron4ek (única opção viável para WOW64 atual)
-# =============================================================================
+# Base image: Ubuntu 24.04 (Noble) for ARM64
+FROM ubuntu:24.04
 
-# -----------------------------------------------------------------------------
-# ARGs Globais
-# -----------------------------------------------------------------------------
-ARG BUILDER_VERSION=bookworm-slim
-ARG RUNTIME_VERSION=sid-slim
-ARG WINE_VERSION=11.0-rc3
+# Avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
 
-# =============================================================================
-# STAGE 2: Download e preparação do Wine
-# =============================================================================
-FROM debian:${BUILDER_VERSION} AS wine-prep
-
-ARG WINE_VERSION
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget \
-    xz-utils \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# Download Wine com WOW64
-RUN mkdir -p /wine && \
-    cd /tmp && \
-    wget -q "https://github.com/Kron4ek/Wine-Builds/releases/download/${WINE_VERSION}/wine-${WINE_VERSION}-amd64-wow64.tar.xz" -O wine.tar.xz && \
-    tar -xf wine.tar.xz -C /wine --strip-components=1 && \
-    rm wine.tar.xz && \
-    # Fix dnsapi crash
-    rm -f /wine/lib/wine/x86_64-unix/dnsapi.so && \
-    rm -f /wine/lib64/wine/x86_64-unix/dnsapi.so
-
-# Download Wine Mono (Necessário para BepInEx/.NET)
-# Versão 9.4.0 é compatível com Wine 9+
-RUN wget -q "https://dl.winehq.org/wine/wine-mono/9.4.0/wine-mono-9.4.0-x86.msi" -O /wine/mono.msi
-
-# =============================================================================
-# STAGE 3: Imagem de Runtime (FINAL)
-# =============================================================================
-FROM debian:${RUNTIME_VERSION} AS runtime
-
-LABEL maintainer="VRising ARM64 Server"
-LABEL description="V Rising Dedicated Server for ARM64 using Box64 (Debian Sid) + Box86"
-
-# -----------------------------------------------------------------------------
-# Variáveis de ambiente
-# -----------------------------------------------------------------------------
-ENV DEBIAN_FRONTEND=noninteractive \
-    SERVER_NAME="V Rising Server" \
-    WORLD_NAME="world1" \
-    PASSWORD="" \
-    MAX_USERS="40" \
-    GAME_PORT="9876" \
-    QUERY_PORT="9877" \
-    LIST_ON_MASTER_SERVER="false" \
-    LIST_ON_EOS="false" \
-    GAME_MODE_TYPE="PvP" \
-    TZ="America/Sao_Paulo" \
-    SERVER_DIR="/data/server" \
-    SAVES_DIR="/data/saves" \
-    VRISING_APP_ID="1829350" \
-    # BepInEx Plugins Support (set to true to enable mods)
-    ENABLE_PLUGINS="false" \
-    WINEPREFIX="/data/wine" \
-    WINEARCH="win64" \
-    WINEDEBUG="-all" \
-    WINEDLLOVERRIDES="mscoree=d;mshtml=d;dnsapi=b" \
-    DISPLAY=":0" \
-    # Box settings
-    BOX86_LOG="0" \
-    BOX64_LOG="0" \
-    BOX86_NOBANNER="1" \
-    BOX64_NOBANNER="1" \
-    BOX64_WINE_PRELOADED="1" \
-    BOX64_LD_LIBRARY_PATH="/opt/wine/lib/wine/x86_64-unix:/opt/wine/lib" \
-    LANG="en_US.UTF-8" \
-    LANGUAGE="en_US:en" \
-    LC_ALL="en_US.UTF-8"
-
-# -----------------------------------------------------------------------------
-# Instalar Dependências (Box64 do Repo Oficial + Box86 do RyanFortner)
-# -----------------------------------------------------------------------------
-# Debian Sid contém box64 nos repositórios oficiais!
-RUN dpkg --add-architecture armhf && \
-    apt-get update && apt-get install -y --no-install-recommends \
-    # Setup para adicionar repo do RyanFortner (Box86)
-    wget \
-    gnupg \
-    ca-certificates \
-    && mkdir -p /etc/apt/keyrings \
-    && wget -qO- https://ryanfortner.github.io/box86-debs/KEY.gpg | gpg --dearmor -o /etc/apt/keyrings/box86-debs-archive-keyring.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/box86-debs-archive-keyring.gpg] https://ryanfortner.github.io/box86-debs/debian ./" | tee /etc/apt/sources.list.d/box86.list \
-    && apt-get update && apt-get install -y --no-install-recommends \
-    # Box86 (via repo RyanFortner)
-    box86-generic-arm:armhf \
-    # Box64 Oficial (Debian)
-    box64 \
-    # Utilitários
+# 1. Install Host Dependencies (ARM64)
+# We need python3/curl/etc for the build process and FEX dependencies
+RUN apt-get update && apt-get install -y \
     curl \
-    xz-utils \
+    wget \
     jq \
-    tzdata \
-    netcat-openbsd \
-    procps \
-    locales \
+    gnupg \
+    software-properties-common \
+    sudo \
+    tar \
+    xz-utils \
+    unzip \
+    libgl1-mesa-dri \
+    libglx-mesa0 \
+    libvulkan1 \
+    mesa-vulkan-drivers \
     xvfb \
-    # Libs para Wine/Games
-    libresolv-wrapper \
-    libxinerama1 \
-    libxrandr2 \
+    cabextract \
+    libx11-6 \
     libxcomposite1 \
-    libxi6 \
     libxcursor1 \
-    libcups2 \
-    libegl1 \
+    libxi6 \
+    libxtst6 \
+    libxrandr2 \
     libfreetype6 \
     libfontconfig1 \
-    libxext6 \
-    libxrender1 \
-    libsm6 \
-    libopengl0 \
-    libsdl2-2.0-0 \
-    # Suporte 32-bit (Box86 needs this)
-    libc6:armhf \
-    libstdc++6:armhf \
-    libncurses6:armhf \
-    && rm -rf /var/lib/apt/lists/* \
-    && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen 2>/dev/null || true \
-    && locale-gen 2>/dev/null || true
+    libdbus-1-3 \
+    && rm -rf /var/lib/apt/lists/*
 
-# -----------------------------------------------------------------------------
-# Copiar Box86 compilado e Wine
-# -----------------------------------------------------------------------------
+# 2. Install FEX-Emu (Host)
+RUN add-apt-repository -y ppa:fex-emu/fex && \
+    apt-get update && \
+    apt-get install -y fex-emu-armv8.2 && \
+    rm -rf /var/lib/apt/lists/*
 
-COPY --from=wine-prep /wine /opt/wine
+# 3. Setup FEX User and RootFS
+# We create a generic user 'fex' but we might run as root in container context for simplicity with Easypanel permissions,
+# however FEX prefers a user. We'll set up the rootfs for the root user or a dedicated user.
+# Let's stick to root for Docker simplicity unless specified.
+# FEX RootFS path: /root/.fex-emu/RootFS/Ubuntu_22.04
 
-# Verificar instalações
-RUN box64 --version && echo "Box64 OK"
-RUN box86 --version && echo "Box86 OK"
+WORKDIR /root
 
-# -----------------------------------------------------------------------------
-# Instalar SteamCMD
-# -----------------------------------------------------------------------------
-RUN mkdir -p /opt/steamcmd && \
-    cd /opt/steamcmd && \
-    wget -q "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" -O steamcmd.tar.gz && \
-    tar -xzf steamcmd.tar.gz && \
-    rm steamcmd.tar.gz && \
-    chmod +x steamcmd.sh
+# Download and Extract FEX RootFS (Ubuntu 22.04 x86-64)
+# We parse the official index to find the URL for Ubuntu 22.04
+RUN echo "Fetching FEX RootFS..." && \
+    ROOTFS_INFO=$(curl -s https://rootfs.fex-emu.gg/RootFS_links.json) && \
+    ROOTFS_URL=$(echo "$ROOTFS_INFO" | jq -r '.v1 | to_entries[] | select(.value.DistroMatch == "ubuntu" and .value.DistroVersion == "22.04") | .value.URL' | head -n 1) && \
+    curl -L -o rootfs.img "$ROOTFS_URL" && \
+    mkdir -p /root/.fex-emu/RootFS/Ubuntu_22.04 && \
+    if echo "$ROOTFS_URL" | grep -q ".ero$"; then \
+    echo "Extracting EroFS..." && \
+    fsck.erofs --extract=/root/.fex-emu/RootFS/Ubuntu_22.04 rootfs.img; \
+    else \
+    echo "Extracting SquashFS..." && \
+    unsquashfs -f -d /root/.fex-emu/RootFS/Ubuntu_22.04 rootfs.img; \
+    fi && \
+    rm rootfs.img && \
+    mkdir -p /root/.fex-emu && \
+    echo '{"Config":{"RootFS":"Ubuntu_22.04"}}' > /root/.fex-emu/Config.json
 
-# -----------------------------------------------------------------------------
-# Baixar BepInEx ARM64-Friendly (tsx-cloud)
-# Inclui interop assemblies pré-gerados que funcionam com Box64
-# -----------------------------------------------------------------------------
-RUN apt-get update && apt-get install -y --no-install-recommends git && \
-    git clone --depth 1 https://github.com/tsx-cloud/vrising-ntsync.git /tmp/tsx-cloud && \
-    mkdir -p /opt/bepinex && \
-    cp -r /tmp/tsx-cloud/Docker/server/BepInEx /opt/bepinex/ && \
-    cp -r /tmp/tsx-cloud/Docker/server/dotnet /opt/bepinex/ && \
-    cp /tmp/tsx-cloud/Docker/server/winhttp.dll /opt/bepinex/ && \
-    cp /tmp/tsx-cloud/Docker/server/doorstop_config.ini /opt/bepinex/ && \
-    cp /tmp/tsx-cloud/Docker/server/.doorstop_version /opt/bepinex/ && \
-    rm -rf /tmp/tsx-cloud && \
-    apt-get purge -y git && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* && \
-    echo "BepInEx ARM64-Friendly downloaded successfully!" && \
-    ls -la /opt/bepinex/
+# 4. Install Wine (x86-64) - Kron4ek Builds (Staging)
+# We place this in a standard location. FEX will execute the binaries inside.
+# Note: FEX will use the libraries from the RootFS to satisfy Wine's dependencies.
+ENV WINE_VERSION="9.4"
+# Using a static link or a known release. Let's use a recent 9.x staging.
+# URL format example: https://github.com/Kron4ek/Wine-Builds/releases/download/9.4/wine-9.4-staging-amd64.tar.xz
 
-# -----------------------------------------------------------------------------
-# Setup Final
-# -----------------------------------------------------------------------------
-RUN mkdir -p /data/server /data/saves /data/logs /data/wine /scripts
+RUN echo "Installing Wine (x86-64)..." && \
+    WINE_URL="https://github.com/Kron4ek/Wine-Builds/releases/download/9.4/wine-9.4-staging-amd64.tar.xz" && \
+    curl -L -o wine.tar.xz "$WINE_URL" && \
+    tar -xf wine.tar.xz -C /opt && \
+    mv /opt/wine-9.4-staging-amd64 /opt/wine && \
+    rm wine.tar.xz
 
-COPY scripts/entrypoint.sh /scripts/entrypoint.sh
-COPY config/ /scripts/config/
-RUN chmod +x /scripts/entrypoint.sh
+# Add Wine to PATH (This path works when running standard shell IF FEX intercepts it, 
+# but usually we invoke via FEXInterpreter for absolute clarity or rely on binfmt_misc)
+ENV PATH="/opt/wine/bin:$PATH"
 
-EXPOSE 9876/udp 9877/udp
+# 5. Setup SteamCMD (Linux x86)
+# run via FEX
+RUN mkdir -p /steamcmd && \
+    curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C /steamcmd
+
+# 6. Environment Variables
+ENV STEAMCMD_DIR="/steamcmd"
+ENV SERVER_DIR="/data/server"
+ENV WINEPREFIX="/data/wineprefix"
+ENV WINEARCH="win64"
+ENV DISPLAY=":0" 
+# Configure FEX to allow some optimizations (optional)
+# ENV FEX_APP_DATA_LOCATION="/root/.fex-emu"
+
+# 7. Add Scripts
+COPY scripts/start.sh /start.sh
+COPY scripts/update_server.sh /update_server.sh
+RUN chmod +x /start.sh /update_server.sh
+
+# 8. Expose Ports (V Rising Default: 9876, 9877 UDP)
+EXPOSE 9876/udp 9877/udp 9876/tcp 9877/tcp
+
+# 9. Volume for persistence
 VOLUME ["/data"]
 
-HEALTHCHECK --interval=60s --timeout=10s --start-period=900s --retries=3 \
-    CMD nc -zu localhost 9876 || exit 1
-
-WORKDIR /data
-ENTRYPOINT ["/scripts/entrypoint.sh"]
+# Entrypoint
+ENTRYPOINT ["/start.sh"]
