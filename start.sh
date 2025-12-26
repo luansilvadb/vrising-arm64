@@ -39,7 +39,12 @@ setup_wine() {
     export DOORSTOP_TARGET_ASSEMBLY="BepInEx/core/BepInEx.Unity.IL2CPP.dll"
     
     # Force lowercase for critical dlls to ensure Wine overrides work
-    if [ -f "$SERVER_DIR/winhttp.dll" ]; then mv "$SERVER_DIR/winhttp.dll" "$SERVER_DIR/winhttp.dll"; fi
+    # We use a temporary name to avoid "same file" error
+    if [ -f "$SERVER_DIR/winhttp.dll" ]; then 
+        mv "$SERVER_DIR/winhttp.dll" "$SERVER_DIR/winhttp.dll.tmp" && mv "$SERVER_DIR/winhttp.dll.tmp" "$SERVER_DIR/winhttp.dll"
+    elif [ -f "$SERVER_DIR/WinHttp.dll" ]; then
+        mv "$SERVER_DIR/WinHttp.dll" "$SERVER_DIR/winhttp.dll"
+    fi
     
     if [ ! -d "$WINEPREFIX/drive_c" ]; then
         info "Initializing Wine prefix..."
