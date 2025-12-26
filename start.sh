@@ -31,6 +31,7 @@ export APP_ID="${APP_ID:-1829350}"
 export SERVER_DIR="${SERVER_DIR:-/data/server}"
 export STEAMCMD_DIR="${STEAMCMD_DIR:-/data/steamcmd}"
 export STEAMCMD_ORIG="${STEAMCMD_ORIG:-/steamcmd}" # Source inside image
+export UPDATE_ON_START="${UPDATE_ON_START:-true}"
 
 # Wine / FEX
 export WINE_BIN="${WINE_BIN:-/opt/wine/bin/wine64}"
@@ -57,8 +58,20 @@ setup_wine() {
     
     # 2. Start Xvfb (Virtual Framebuffer)
     # Background process, required for Unity/Wine
+    log_info "Starting Xvfb..."
     Xvfb :0 -screen 0 1024x768x16 &
-    sleep 2
+    
+    # Wait for Xvfb
+    local i=0
+    while [ ! -e /tmp/.X11-unix/X0 ] && [ $i -lt 50 ]; do
+        sleep 0.1
+        i=$(($i + 1))
+    done
+    if [ ! -e /tmp/.X11-unix/X0 ]; then
+        log_warn "Xvfb socket not found after 5s. Proceeding anyway, but display might fail."
+    else
+        log_success "Xvfb started."
+    fi
     
     # 3. Wine Overrides
     export WINEDLLOVERRIDES="mscoree,mshtml="
@@ -83,6 +96,11 @@ setup_steamcmd() {
 }
 
 update_server() {
+    if [ "$UPDATE_ON_START" != "true" ] && [ -f "$SERVER_DIR/VRisingServer.exe" ]; then
+        log_info "UPDATE_ON_START is disabled. Skipping SteamCMD update."
+        return
+    fi
+
     log_info "Checking for V Rising updates (App ID: $APP_ID)..."
     
     if [ ! -f "$STEAMCMD_DIR/steamcmd.sh" ]; then
@@ -180,25 +198,8 @@ configure_settings() {
     # Use JQ to idempotently update configuration based on Envs
     TMP_SETTINGS=$(mktemp)
     
-    jq --arg desc "${SERVER_DESCRIPTION}" \
-       --arg list "${LIST_ON_MASTER_SERVER}" \
-       --arg maxUsers "${MAX_CONNECTED_USERS}" \
-       --arg maxAdmins "${MAX_CONNECTED_ADMINS}" \
-       --arg fps "${SERVER_FPS}" \
-       --arg pass "${SERVER_PASSWORD}" \
-       --arg secure "${SECURE}" \
-       --arg autoSaveCount "${AUTO_SAVE_COUNT}" \
-       --arg autoSaveInterval "${AUTO_SAVE_INTERVAL}" \
-       --arg compressSave "${COMPRESS_SAVE_FILES}" \
-       --arg gamePreset "${GAME_SETTINGS_PRESET}" \
-       --arg diffPreset "${GAME_DIFFICULTY_PRESET}" \
-       --arg adminDebug "${ADMIN_ONLY_DEBUG_EVENTS}" \
-       --arg disableDebug "${DISABLE_DEBUG_EVENTS}" \
-       --arg apiEnabled "${API_ENABLED}" \
-       --arg rconEnabled "${RCON_ENABLED}" \
-       --arg rconPort "${RCON_PORT}" \
-       --arg rconPass "${RCON_PASSWORD}" \
-       '
+    # Helper to improve readability
+    jq_filter='
       (if $desc != "" then .Description = $desc else . end) |
       (if $list == "true" then .ListOnMasterServer = true | .ListOnSteam = true | .ListOnEOS = true 
        elif $list == "false" then .ListOnMasterServer = false | .ListOnSteam = false | .ListOnEOS = false 
@@ -219,7 +220,27 @@ configure_settings() {
       (if $rconEnabled != "" then .Rcon.Enabled = ($rconEnabled == "true") else . end) |
       (if $rconPort != "" then .Rcon.Port = ($rconPort | tonumber) else . end) |
       (if $rconPass != "" then .Rcon.Password = $rconPass else . end)
-    ' "$SETTINGS_FILE" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_FILE"
+    '
+
+    jq --arg desc "${SERVER_DESCRIPTION}" \
+       --arg list "${LIST_ON_MASTER_SERVER}" \
+       --arg maxUsers "${MAX_CONNECTED_USERS}" \
+       --arg maxAdmins "${MAX_CONNECTED_ADMINS}" \
+       --arg fps "${SERVER_FPS}" \
+       --arg pass "${SERVER_PASSWORD}" \
+       --arg secure "${SECURE}" \
+       --arg autoSaveCount "${AUTO_SAVE_COUNT}" \
+       --arg autoSaveInterval "${AUTO_SAVE_INTERVAL}" \
+       --arg compressSave "${COMPRESS_SAVE_FILES}" \
+       --arg gamePreset "${GAME_SETTINGS_PRESET}" \
+       --arg diffPreset "${GAME_DIFFICULTY_PRESET}" \
+       --arg adminDebug "${ADMIN_ONLY_DEBUG_EVENTS}" \
+       --arg disableDebug "${DISABLE_DEBUG_EVENTS}" \
+       --arg apiEnabled "${API_ENABLED}" \
+       --arg rconEnabled "${RCON_ENABLED}" \
+       --arg rconPort "${RCON_PORT}" \
+       --arg rconPass "${RCON_PASSWORD}" \
+       "$jq_filter" "$SETTINGS_FILE" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_FILE"
     
     log_success "Server Host Settings applied."
 }
