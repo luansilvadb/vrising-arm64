@@ -35,6 +35,11 @@ setup_wine() {
     [ -e /tmp/.X11-unix/X0 ] && ok "Xvfb ready" || warn "Xvfb socket not found"
     
     export WINEDLLOVERRIDES="mscoree,mshtml=;winhttp=n,b"
+    export DOORSTOP_ENABLE=TRUE
+    export DOORSTOP_TARGET_ASSEMBLY="BepInEx/core/BepInEx.Unity.IL2CPP.dll"
+    
+    # Force lowercase for critical dlls to ensure Wine overrides work
+    if [ -f "$SERVER_DIR/winhttp.dll" ]; then mv "$SERVER_DIR/winhttp.dll" "$SERVER_DIR/winhttp.dll"; fi
     
     if [ ! -d "$WINEPREFIX/drive_c" ]; then
         info "Initializing Wine prefix..."
