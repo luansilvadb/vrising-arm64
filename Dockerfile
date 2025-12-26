@@ -50,8 +50,6 @@ ENV PATH="/opt/wine/bin:$PATH" \
 COPY start.sh /
 RUN sed -i 's/\r$//' /start.sh && chmod +x /start.sh
 
-COPY mods /mnt/custom_mods
-
 EXPOSE 9876/udp 9877/udp 9876/tcp 9877/tcp
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \

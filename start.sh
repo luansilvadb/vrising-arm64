@@ -30,13 +30,13 @@ section() { printf '\n\033[1;36m━━━ %s ━━━\033[0m\n' "$1"; }
 : "${SAVE_NAME:=world1}"
 : "${GAME_PORT:=9876}"
 : "${QUERY_PORT:=9877}"
-: "${ENABLE_MODS:=false}"
+
 : "${DEBUG:=false}"
-: "${WINE_DEBUG_LEVEL:=fixme-all}"
+
 
 export APP_ID SERVER_DIR STEAMCMD_DIR STEAMCMD_ORIG UPDATE_ON_START
 export WINE_BIN WINEPREFIX WINEARCH=win64 DISPLAY=:0
-export SERVER_NAME SAVE_NAME GAME_PORT QUERY_PORT ENABLE_MODS DEBUG
+export SERVER_NAME SAVE_NAME GAME_PORT QUERY_PORT DEBUG
 
 setup_wine() {
     section "Wine/FEX Configuration"
@@ -84,16 +84,7 @@ setup_wine() {
         info "Wine debug: $WINE_DEBUG_LEVEL"
     fi
     
-    # BepInEx/Doorstop configuration (only if mods enabled)
-    if [[ "$ENABLE_MODS" == "true" ]]; then
-        export DOORSTOP_ENABLE=TRUE
-        export DOORSTOP_TARGET_ASSEMBLY="BepInEx/core/BepInEx.Unity.IL2CPP.dll"
-        export DOORSTOP_DEBUG=1
-        info "Doorstop: ENABLED (target: BepInEx.Unity.IL2CPP.dll)"
-    else
-        export DOORSTOP_ENABLE=FALSE
-        info "Doorstop: DISABLED (ENABLE_MODS=false)"
-    fi
+
     
     # .NET diagnostics
     export DOTNET_CLI_TELEMETRY_OPTOUT=1
@@ -104,13 +95,7 @@ setup_wine() {
         info "CoreCLR tracing: ENABLED"
     fi
     
-    # Ensure winhttp.dll is lowercase (Wine DLL override requirement)
-    if [ -f "$SERVER_DIR/WinHttp.dll" ]; then
-        mv "$SERVER_DIR/WinHttp.dll" "$SERVER_DIR/winhttp.dll"
-        ok "Renamed WinHttp.dll -> winhttp.dll"
-    elif [ -f "$SERVER_DIR/winhttp.dll" ]; then
-        debug "winhttp.dll already lowercase"
-    fi
+
     
     # Initialize Wine prefix if needed
     if [ ! -d "$WINEPREFIX/drive_c" ]; then
@@ -168,27 +153,37 @@ update_server() {
     fi
 }
 
-cleanup_mods() {
-    info "Checking for mod artifacts to clean..."
-    [[ "$ENABLE_MODS" == "true" ]] && return
-    
-    if [[ -f "$SERVER_DIR/winhttp.dll" || -d "$SERVER_DIR/BepInEx" ]]; then
-        warn "Cleaning BepInEx artifacts..."
-        rm -f "$SERVER_DIR/winhttp.dll"
-        rm -f "$SERVER_DIR/doorstop_config.ini"
-        rm -rf "$SERVER_DIR/BepInEx"
-        find "$SERVER_DIR" -maxdepth 1 -name "preloader_*.log" -delete || true
-        ok "Cleanup done"
-    fi
-}
 
-install_mods() {
-    if [[ "$ENABLE_MODS" == "true" && -d "/mnt/custom_mods" ]]; then
-        info "Installing/Updating mods from /mnt/custom_mods..."
-        # Copy everything from mount to server dir
-        # We use force copy to ensure we have the latest version from host
-        cp -rf /mnt/custom_mods/* "$SERVER_DIR/" || warn "Some files could not be copied"
-        ok "Mods installed to $SERVER_DIR"
+
+remove_mod_artifacts() {
+    section "Sanitizing Server (Vanilla Enforcement)"
+    
+    # Comprehensive list of mod loader artifacts to remove
+    local mod_artifacts=(
+        "BepInEx"
+        "doorstop_config.ini"
+        "winhttp.dll"
+        "winmm.dll"
+        "version.dll"
+        "doorstop_libs"
+        ".doorstop_version"
+        "MelonLoader"
+        "Mods"
+        "user_assemblies"
+    )
+    
+    local found_any=false
+    
+    for artifact in "${mod_artifacts[@]}"; do
+        if [ -e "$SERVER_DIR/$artifact" ]; then
+            rm -rf "$SERVER_DIR/$artifact"
+            ok "Removed mod artifact: $artifact"
+            found_any=true
+        fi
+    done
+    
+    if [[ "$found_any" == "false" ]]; then
+        ok "Verified clean: No mod artifacts found."
     fi
 }
 
@@ -252,88 +247,7 @@ configure_settings() {
 # Diagnostic Functions
 # =============================================================================
 
-verify_bepinex() {
-    section "BepInEx Verification"
-    
-    if [[ "$ENABLE_MODS" != "true" ]]; then
-        info "Mods disabled - skipping BepInEx verification"
-        return
-    fi
-    
-    local bepinex_dir="$SERVER_DIR/BepInEx"
-    local issues=0
-    
-    # Check core files
-    info "Checking BepInEx installation..."
-    
-    if [ ! -d "$bepinex_dir" ]; then
-        warn "BepInEx directory not found: $bepinex_dir"
-        ((issues++))
-    else
-        ok "BepInEx directory exists"
-        
-        # Core DLL check
-        local core_dll="$bepinex_dir/core/BepInEx.Unity.IL2CPP.dll"
-        if [ -f "$core_dll" ]; then
-            ok "Core DLL: $(basename "$core_dll") ($(stat -c%s "$core_dll") bytes)"
-        else
-            warn "Missing core DLL: $core_dll"
-            ((issues++))
-        fi
-        
-        # Doorstop proxy (winhttp.dll)
-        if [ -f "$SERVER_DIR/winhttp.dll" ]; then
-            ok "Doorstop proxy: winhttp.dll ($(stat -c%s "$SERVER_DIR/winhttp.dll") bytes)"
-        else
-            warn "Missing doorstop proxy: winhttp.dll"
-            ((issues++))
-        fi
-        
-        # doorstop_config.ini
-        if [ -f "$SERVER_DIR/doorstop_config.ini" ]; then
-            ok "Doorstop config: doorstop_config.ini"
-            debug "$(head -10 "$SERVER_DIR/doorstop_config.ini")"
-        else
-            warn "Missing doorstop config: doorstop_config.ini"
-            ((issues++))
-        fi
-        
-        # CoreCLR (dotnet folder)
-        local dotnet_dir="$SERVER_DIR/dotnet"
-        if [ -d "$dotnet_dir" ]; then
-            local coreclr="$dotnet_dir/coreclr.dll"
-            if [ -f "$coreclr" ]; then
-                ok "CoreCLR runtime: coreclr.dll ($(stat -c%s "$coreclr") bytes)"
-            else
-                warn "Missing CoreCLR: $coreclr"
-                ((issues++))
-            fi
-        else
-            warn "Missing dotnet directory: $dotnet_dir"
-            ((issues++))
-        fi
-        
-        # Interop assemblies (pre-generated for ARM64 compat)
-        local interop_count
-        interop_count=$(find "$bepinex_dir/interop" -name "*.dll" 2>/dev/null | wc -l)
-        if [ "$interop_count" -gt 0 ]; then
-            ok "Interop assemblies: $interop_count DLLs pre-generated"
-        else
-            warn "No interop assemblies found - first run may be slow/fail on ARM64"
-        fi
-        
-        # Plugins
-        local plugin_count
-        plugin_count=$(find "$bepinex_dir/plugins" -name "*.dll" 2>/dev/null | wc -l)
-        info "Plugins installed: $plugin_count"
-    fi
-    
-    if [ $issues -gt 0 ]; then
-        warn "BepInEx verification found $issues issue(s)"
-    else
-        ok "BepInEx verification passed"
-    fi
-}
+
 
 dump_environment() {
     section "Environment Summary"
@@ -341,14 +255,14 @@ dump_environment() {
     info "Server: $SERVER_NAME"
     info "Ports: Game=$GAME_PORT, Query=$QUERY_PORT"
     info "Save: $SAVE_NAME"
-    info "Mods: $ENABLE_MODS"
+
     info "Debug: $DEBUG"
     info "Wine prefix: $WINEPREFIX"
     info "Server dir: $SERVER_DIR"
     
     if [[ "$DEBUG" == "true" ]]; then
         info "--- Full Environment ---"
-        env | grep -E '^(WINE|DOORSTOP|BEPINEX|COMPlus|DOTNET|CORE|SERVER|GAME|QUERY|SAVE|ENABLE)' | sort || true
+        env | grep -E '^(WINE|COMPlus|DOTNET|CORE|SERVER|GAME|QUERY|SAVE|ENABLE)' | sort || true
     fi
 }
 
@@ -402,9 +316,8 @@ main() {
     setup_wine
     setup_steamcmd
     update_server
-    install_mods
-    cleanup_mods
-    verify_bepinex
+    remove_mod_artifacts
+
     configure_settings
     dump_environment
     pre_launch_checks
