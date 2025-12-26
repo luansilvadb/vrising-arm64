@@ -74,16 +74,29 @@ update_server() {
         (( i < retries )) && { warn "Retrying in 5s..."; sleep 5; }
     done
     
-    [ -f "$SERVER_DIR/VRisingServer.exe" ] || fail "VRisingServer.exe not found"
+    
+    if [ -f "$SERVER_DIR/VRisingServer.exe" ]; then
+        ok "VRisingServer.exe found"
+    else
+        warn "VRisingServer.exe NOT FOUND in $SERVER_DIR"
+        info "Directory listing:"
+        ls -F "$SERVER_DIR" || true
+        fail "Server binary missing"
+    fi
 }
 
 cleanup_mods() {
+    info "Checking for mod artifacts to clean..."
     [[ "$ENABLE_MODS" == "true" ]] && return
-    [[ -f "$SERVER_DIR/winhttp.dll" || -d "$SERVER_DIR/BepInEx" ]] || return
     
-    warn "Cleaning BepInEx artifacts..."
-    rm -rf "$SERVER_DIR"/{winhttp.dll,doorstop_config.ini,BepInEx,preloader_*.log}
-    ok "Cleanup done"
+    if [[ -f "$SERVER_DIR/winhttp.dll" || -d "$SERVER_DIR/BepInEx" ]]; then
+        warn "Cleaning BepInEx artifacts..."
+        rm -f "$SERVER_DIR/winhttp.dll"
+        rm -f "$SERVER_DIR/doorstop_config.ini"
+        rm -rf "$SERVER_DIR/BepInEx"
+        find "$SERVER_DIR" -maxdepth 1 -name "preloader_*.log" -delete || true
+        ok "Cleanup done"
+    fi
 }
 
 configure_settings() {
