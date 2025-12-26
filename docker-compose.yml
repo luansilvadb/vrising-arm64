@@ -6,42 +6,33 @@ services:
     image: vrising-fex:latest
     container_name: vrising-fex
     restart: unless-stopped
-    # FEX-Emu requires unconfined seccomp to handle signal masking and syscall emulation correctly
-    security_opt:
-      - seccomp:unconfined
-    cap_add:
-      - SYS_PTRACE
+    security_opt: [ seccomp:unconfined ]
+    cap_add: [ SYS_PTRACE ]
+    env_file: .env
     environment:
-      - SERVER_NAME=Velion
-      - SAVE_NAME=world1
-      - SERVER_DESCRIPTION=Bem-vindo ao Reino de Velion! | Desperte, Vampiro. Seu legado começa agora.
-      - LIST_ON_MASTER_SERVER=true
-
-      - GAME_PORT=9876
-      - QUERY_PORT=9877
-
-      # Configuraçoes Avançadas (Mapeadas do JSON do usuário)
-      - MAX_CONNECTED_USERS=100
-      - MAX_CONNECTED_ADMINS=5
-      - SERVER_FPS=60
-      - SERVER_PASSWORD=
-      - SECURE=true
-      - AUTO_SAVE_COUNT=25
-      - AUTO_SAVE_INTERVAL=120
-      - COMPRESS_SAVE_FILES=true
-      - GAME_SETTINGS_PRESET=
-      - GAME_DIFFICULTY_PRESET=Difficulty_Brutal
-      - ADMIN_ONLY_DEBUG_EVENTS=true
-      - DISABLE_DEBUG_EVENTS=false
-
-      # API & RCON
-      - API_ENABLED=false
-      - RCON_ENABLED=true
-      - RCON_PORT=25575
-      - RCON_PASSWORD=master.007,1
-    volumes:
-      - vrising-data:/data
-    # Easypanel generally likes resources limits, but FEX needs some CPU
+      - SERVER_NAME=${SERVER_NAME:-V Rising FEX Server}
+      - SAVE_NAME=${SAVE_NAME:-world1}
+      - SERVER_DESCRIPTION=${SERVER_DESCRIPTION:-}
+      - LIST_ON_MASTER_SERVER=${LIST_ON_MASTER_SERVER:-true}
+      - GAME_PORT=${GAME_PORT:-9876}
+      - QUERY_PORT=${QUERY_PORT:-9877}
+      - MAX_CONNECTED_USERS=${MAX_CONNECTED_USERS:-100}
+      - MAX_CONNECTED_ADMINS=${MAX_CONNECTED_ADMINS:-5}
+      - SERVER_FPS=${SERVER_FPS:-60}
+      - SERVER_PASSWORD=${SERVER_PASSWORD:-}
+      - SECURE=${SECURE:-true}
+      - AUTO_SAVE_COUNT=${AUTO_SAVE_COUNT:-25}
+      - AUTO_SAVE_INTERVAL=${AUTO_SAVE_INTERVAL:-120}
+      - COMPRESS_SAVE_FILES=${COMPRESS_SAVE_FILES:-true}
+      - GAME_SETTINGS_PRESET=${GAME_SETTINGS_PRESET:-}
+      - GAME_DIFFICULTY_PRESET=${GAME_DIFFICULTY_PRESET:-Difficulty_Brutal}
+      - ADMIN_ONLY_DEBUG_EVENTS=${ADMIN_ONLY_DEBUG_EVENTS:-true}
+      - DISABLE_DEBUG_EVENTS=${DISABLE_DEBUG_EVENTS:-false}
+      - API_ENABLED=${API_ENABLED:-false}
+      - RCON_ENABLED=${RCON_ENABLED:-true}
+      - RCON_PORT=${RCON_PORT:-25575}
+      - RCON_PASSWORD=${RCON_PASSWORD:-}
+    volumes: [ vrising-data:/data ]
     deploy:
       resources:
         limits:
@@ -49,4 +40,6 @@ services:
     ports:
       - "9876:9876/udp"
       - "9877:9877/udp"
-volumes:\n  vrising-data:
+
+volumes:
+  vrising-data:
