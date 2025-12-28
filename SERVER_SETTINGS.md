@@ -45,7 +45,7 @@
 
 1. **👥 GRUPOS SÃO ESSENCIAIS** - Solo é brutal, grupos são o caminho
 2. **💪 NÃO É ONE-SHOT** - Difícil sim, impossível não
-3. **⏱️ LUTAS LONGAS** - Bosses com 3.5x HP = 3-5 minutos de combate
+3. **⏱️ LUTAS ÉPICAS** - Bosses com 8x HP + jogadores com -40% dano = 35-50 min de combate
 4. **📈 ESCALA PROGRESSIVA** - Mais gente = mais HP do boss, mas sempre vale a pena
 5. **🏰 Castelos são ÚNICOS** - 1 por jogador, podem ser roubados
 6. **🌙 Ambiente é PERIGOSO** - Blood drena 50% mais rápido, durabilidade 2x
@@ -94,6 +94,15 @@
 | `MaxHealthModifier` | **8.0** | Bosses têm 8x HP (lutas ÉPICAS!) |
 | `PowerModifier` | **1.75** | +75% dano (punitivo mas justo) |
 | `LevelIncrease` | **3** | Bosses +3 níveis acima |
+
+### Vampiro (Jogador) - Redução de Dano
+
+| Modifier | Valor | Efeito |
+|----------|-------|--------|
+| `PhysicalPowerModifier` | **0.6** | -40% dano físico do jogador |
+| `SpellPowerModifier` | **0.6** | -40% dano mágico do jogador |
+
+> 🛡️ **Resultado Combinado:** Boss com 8x HP + Jogador com 60% dano = Boss **~13x mais tanky** que o normal!
 
 ### 🎯 Sistema de Escalonamento Dinâmico (NATIVO DO JOGO)
 
@@ -525,12 +534,14 @@ Eventos dinâmicos de invasão que forçam conflito por território.
     },
     
     "UnitStatModifiers_VBlood": {
-        "MaxHealthModifier": 3.5,
+        "MaxHealthModifier": 8.0,
         "PowerModifier": 1.75,
         "LevelIncrease": 3
     },
     
     "VampireStatModifiers": {
+        "PhysicalPowerModifier": 0.6,
+        "SpellPowerModifier": 0.6,
         "DamageReceivedModifier": 1.0
     }
 }
@@ -541,11 +552,11 @@ Eventos dinâmicos de invasão que forçam conflito por território.
 | Categoria | Key Settings |
 |-----------|-------------|
 | **PVP** | `BloodBoundEquipment: true`, `DeathContainerPermission: Anyone` |
-| **PVE** | `UnitStatModifiers_VBlood.MaxHealthModifier: 3.5`, `PowerModifier: 1.75`, `LevelIncrease: 3` |
-| **Mobs** | `UnitStatModifiers_Global.MaxHealthModifier: 2.0`, `PowerModifier: 1.5` |
-| **Economia** | `MaterialYieldModifier_Global: 1.5`, `BloodDrainModifier: 1.5` |
+| **PVE Bosses** | `MaxHealthModifier: 8.0`, `PowerModifier: 1.75`, `LevelIncrease: 3` |
+| **Mobs** | `MaxHealthModifier: 2.0`, `PowerModifier: 1.5` |
+| **Vampiro** | `PhysicalPowerModifier: 0.6`, `SpellPowerModifier: 0.6` |
+| **Economia** | `BloodDrainModifier: 1.5`, `DurabilityDrainModifier: 2.0` |
 | **Siege** | `CastleDamageMode: TimeRestricted` |
-| **Hazards** | `BloodDrain: 1.5`, `DurabilityDrain: 2.0`, demais em `1.25` |
 
 ---
 
@@ -569,6 +580,32 @@ Eventos dinâmicos de invasão que forçam conflito por território.
 ---
 
 ## 📝 Changelog
+
+### v4.1.0 (2025-12-28) - Brutal Defense Update 🛡️
+
+**FILOSOFIA: \"Bosses São Tanques de Guerra\"**
+
+Além do HP aumentado, agora os jogadores causam menos dano, tornando os bosses ainda mais resistentes sem aumentar o dano que eles causam.
+
+**Novas Configurações:**
+
+| Config | Antes | Depois | Efeito |
+|--------|-------|--------|--------|
+| Vampire `PhysicalPowerModifier` | 1.0 | **0.6** | Jogador causa -40% dano físico |
+| Vampire `SpellPowerModifier` | 1.0 | **0.6** | Jogador causa -40% dano mágico |
+
+**Resultado Combinado:**
+```
+Boss HP: 8.0x
+Jogador Dano: 0.6x (60%)
+Tankiness Efetiva: 8.0 / 0.6 = ~13.3x
+
+Tempo de luta estimado (grupo de 4): 35-50 minutos
+```
+
+> 🛡️ **Objetivo:** Bosses ultra-tanky sem serem one-shot machines!
+
+---
 
 ### v4.0.0 (2025-12-28) - MMO Hardcore Update 🎮
 

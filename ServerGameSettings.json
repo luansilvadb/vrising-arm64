@@ -81,8 +81,8 @@
     "VampireStatModifiers": {
         "MaxHealthModifier": 1.0,
         "MaxEnergyModifier": 1.0,
-        "PhysicalPowerModifier": 1.0,
-        "SpellPowerModifier": 1.0,
+        "PhysicalPowerModifier": 0.6,
+        "SpellPowerModifier": 0.6,
         "ResourcePowerModifier": 1.0,
         "SiegePowerModifier": 1.0,
         "DamageReceivedModifier": 1.0,
