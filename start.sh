@@ -194,10 +194,27 @@ configure_settings() {
     info "Applying server settings..."
     local settings_dir="/data/save-data/Settings"
     local settings_file="$settings_dir/ServerHostSettings.json"
+    local game_settings_file="$settings_dir/ServerGameSettings.json"
     
     mkdir -p "$settings_dir"
     [ -f "$settings_file" ] || echo '{}' > "$settings_file"
     
+    # Check if custom ServerGameSettings.json exists (e.g., from EasyPanel File Mount)
+    if [ -f "$game_settings_file" ]; then
+        ok "Custom ServerGameSettings.json detected (File Mount)"
+        info "Game settings will be loaded from: $game_settings_file"
+        # Force empty GameSettingsPreset to use custom file
+        if [ -z "${GAME_SETTINGS_PRESET:-}" ]; then
+            info "GameSettingsPreset is empty - custom settings will be used"
+        else
+            warn "GameSettingsPreset='$GAME_SETTINGS_PRESET' is set - this may override your custom ServerGameSettings.json!"
+        fi
+    else
+        info "No custom ServerGameSettings.json found - using defaults or preset"
+    fi
+    
+    # Build jq command - remove GameSettingsPreset from JSON if not explicitly set
+    # This ensures the custom ServerGameSettings.json file is used
     jq --arg desc "${SERVER_DESCRIPTION:-}" \
        --arg list "${LIST_ON_MASTER_SERVER:-}" \
        --arg maxUsers "${MAX_CONNECTED_USERS:-}" \
@@ -233,7 +250,8 @@ configure_settings() {
         update("AutoSaveCount"; $autoSaveCount; num($autoSaveCount)) |
         update("AutoSaveInterval"; $autoSaveInterval; num($autoSaveInterval)) |
         update("CompressSaveFiles"; $compressSave; bool($compressSave)) |
-        update("GameSettingsPreset"; $gamePreset; str($gamePreset)) |
+        # Only set GameSettingsPreset if explicitly provided, otherwise remove it
+        (if $gamePreset != "" then .GameSettingsPreset = $gamePreset else del(.GameSettingsPreset) end) |
         update("GameDifficultyPreset"; $diffPreset; str($diffPreset)) |
         update("AdminOnlyDebugEvents"; $adminDebug; bool($adminDebug)) |
         update("DisableDebugEvents"; $disableDebug; bool($disableDebug)) |

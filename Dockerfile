@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 # All dependencies in single layer for minimal image size
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl wget jq gnupg software-properties-common \
+    curl wget jq gnupg software-properties-common nano \
     tar xz-utils unzip cabextract dbus xvfb netcat-openbsd \
     libgl1-mesa-dri libglx-mesa0 libvulkan1 mesa-vulkan-drivers \
     libx11-6 libxcomposite1 libxcursor1 libxi6 libxtst6 libxrandr2 \
