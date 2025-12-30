@@ -379,7 +379,8 @@ main() {
         -saveName "$SAVE_NAME" \
         -logFile "Z:/data/VRisingServer.log" \
         -gamePort "$GAME_PORT" \
-        -queryPort "$QUERY_PORT"
+        -queryPort "$QUERY_PORT" \
+        -job-worker-count 4
 }
 
 # Run main
