@@ -376,10 +376,13 @@ main() {
     
     section "Launching Server"
     info "Command: FEXInterpreter $WINE_BIN VRisingServer.exe"
-    info "Log file: /data/VRisingServer.log"
+    info "Log file: NUL (Performance Mode)"
     info "Press Ctrl+C to stop the server"
     printf '\033[0;90m%s\033[0m\n' "────────────────────────────────────────────────────────────────"
     
+    # 4. CPU Priority: Give High Priority to Server Process
+    renice -n -10 -p $$ || warn "Failed to set high priority (renice)"
+
     cd "$SERVER_DIR"
     
     exec FEXInterpreter "$WINE_BIN" \
@@ -389,7 +392,7 @@ main() {
         -persistentDataPath "Z:/data/save-data" \
         -serverName "$SERVER_NAME" \
         -saveName "$SAVE_NAME" \
-        -logFile "Z:/data/VRisingServer.log" \
+        -logFile "NUL" \
         -gamePort "$GAME_PORT" \
         -queryPort "$QUERY_PORT" \
         -job-worker-count 4
