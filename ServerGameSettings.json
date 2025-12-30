@@ -24,23 +24,23 @@
     "InventoryStacksModifier": 2.0,
     "DropTableModifier_General": 1.5,
     "DropTableModifier_Missions": 5.0,
-    "DropTableModifier_Resources": 2.0,
-    "MaterialYieldModifier_Global": 1.5,
-    "BloodEssenceYieldModifier": 1.5,
+    "DropTableModifier_Resources": 2.5,
+    "MaterialYieldModifier_Global": 2.0,
+    "BloodEssenceYieldModifier": 2.0,
     "BatBoundItems": false,
     "BatBoundShards": false,
     "JournalVBloodSourceUnitMaxDistance": 25.0,
     "PvPVampireRespawnModifier": 1.5,
     "CastleMinimumDistanceInFloors": 3,
     "ClanSize": 10,
-    "BloodDrainModifier": 1.5,
-    "DurabilityDrainModifier": 2.0,
-    "GarlicAreaStrengthModifier": 1.25,
-    "HolyAreaStrengthModifier": 1.25,
-    "SilverStrengthModifier": 1.25,
-    "SunDamageModifier": 1.25,
+    "BloodDrainModifier": 1.0,
+    "DurabilityDrainModifier": 0.5,
+    "GarlicAreaStrengthModifier": 1.0,
+    "HolyAreaStrengthModifier": 1.0,
+    "SilverStrengthModifier": 1.0,
+    "SunDamageModifier": 1.0,
     "CastleDecayRateModifier": 0.5,
-    "CastleBloodEssenceDrainModifier": 1.25,
+    "CastleBloodEssenceDrainModifier": 1.0,
     "CastleSiegeTimer": 600.0,
     "CastleUnderAttackTimer": 90.0,
     "AnnounceSiegeWeaponSpawn": true,
@@ -54,22 +54,16 @@
     "ResearchTimeModifier": 0.75,
     "DismantleResourceModifier": 0.75,
     "ServantConvertRateModifier": 1.5,
-    "RepairCostModifier": 1.25,
-    "Death_DurabilityFactorLoss": 0.5,
+    "RepairCostModifier": 1.0,
+    "Death_DurabilityFactorLoss": 0.25,
     "Death_DurabilityLossFactorAsResources": 1.0,
     "StarterEquipmentId": 0,
     "StarterResourcesId": 0,
-    "VBloodUnitSettings": [
-        {
-            "UnitId": -1466803079,
-            "UnitLevel": 94,
-            "DefaultUnlocked": true
-        }
-    ],
+    "VBloodUnitSettings": [],
     "UnlockedAchievements": [],
     "UnlockedResearchs": [],
     "GameTimeModifiers": {
-        "DayDurationInSeconds": 1440.0,
+        "DayDurationInSeconds": 1800.0,
         "DayStartHour": 9,
         "DayStartMinute": 0,
         "DayEndHour": 17,
@@ -79,23 +73,23 @@
         "BloodMoonBuff": 0.25
     },
     "VampireStatModifiers": {
-        "MaxHealthModifier": 1.0,
+        "MaxHealthModifier": 1.2,
         "MaxEnergyModifier": 1.0,
-        "PhysicalPowerModifier": 0.6,
-        "SpellPowerModifier": 0.6,
+        "PhysicalPowerModifier": 1.0,
+        "SpellPowerModifier": 1.0,
         "ResourcePowerModifier": 1.0,
         "SiegePowerModifier": 1.0,
         "DamageReceivedModifier": 1.0,
-        "ReviveCancelDelay": 3.0
+        "ReviveCancelDelay": 2.0
     },
     "UnitStatModifiers_Global": {
-        "MaxHealthModifier": 2.0,
-        "PowerModifier": 1.5
+        "MaxHealthModifier": 1.25,
+        "PowerModifier": 1.0
     },
     "UnitStatModifiers_VBlood": {
-        "MaxHealthModifier": 8.0,
-        "PowerModifier": 1.75,
-        "LevelIncrease": 3
+        "MaxHealthModifier": 2.0,
+        "PowerModifier": 1.1,
+        "LevelIncrease": 2
     },
     "EquipmentStatModifiers_Global": {
         "MaxEnergyModifier": 1.0,
