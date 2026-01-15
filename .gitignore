@@ -22,8 +22,9 @@ logs/
 .DS_Store
 Thumbs.db
 
+
 # Rust
-Cargo.lock
+# Cargo.lock - Required for reproducible builds
 *.rs.bk
 
 # Data volumes (local testing)
