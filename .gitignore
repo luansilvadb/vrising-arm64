@@ -1,23 +1,30 @@
-# Ambiente local
-.env
-.env.local
+# Build artifacts
+/target
 
-# Logs
-*.log
-logs/
-
-# IDEs
+# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
 
+# Environment
+.env
+!.env.example
+
+# Docker
+.docker/
+
+# Logs
+*.log
+logs/
+
 # OS files
 .DS_Store
 Thumbs.db
 
-# Docker
-docker-compose.override.yml
+# Rust
+Cargo.lock
+*.rs.bk
 
-# Dados do servidor (não fazer commit!)
+# Data volumes (local testing)
 data/

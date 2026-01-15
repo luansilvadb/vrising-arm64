@@ -1,7 +1,25 @@
-.git
+# Build context
+target/
+.git/
+.gitignore
+README.md
+SERVER_SETTINGS.md
 .env
-vrising-data
-node_modules
-Dockerfile
-docker-compose.yml
-docs
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+
+# Logs
+*.log
+logs/
+
+# Local data
+data/
+
+# Documentation
+docs/
+*.md
+!ServerGameSettings.json

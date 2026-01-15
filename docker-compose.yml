@@ -9,9 +9,7 @@ services:
     security_opt: [ seccomp:unconfined ]
     cap_add: [ SYS_PTRACE ]
     env_file: .env
-    # ports:
-    #   - "9876:9876/udp"
-    #   - "9877:9877/udp"
+
     environment:
       - SERVER_NAME=${SERVER_NAME:-V Rising FEX Server}
       - SAVE_NAME=${SAVE_NAME:-world1}
@@ -39,26 +37,13 @@ services:
     volumes:
       - vrising-data:/data
 
-    # --- OTIMIZAÇÕES DE PERFORMANCE ---
-    # 1. Modo Host: ATIVADO para máxima performance de rede (menor ping).
-    # O container usa a porta 9876 UDP diretamente do servidor.
     network_mode: host
 
-    # A seção 'ports' foi REMOVIDA pois o modo host já expõe todas as portas.
-    # ports:
-    #   - "9876:9876/udp"
-    #   - "9877:9877/udp"
-
-    # 2. Limites do Sistema: Evita engasgos por falta de descritores de arquivo.
     ulimits:
       nproc: 65535
       nofile:
         soft: 65535
         hard: 65535
-    # 3. Otimizações do Emulador FEX (Avançado)
-    # Tenta usar '0' se precisar de mais CPU, mas monitore se o servidor fica instável.
-    # environment:
-    #   - FEX_TSOENABLE=1
 
 volumes:
   vrising-data:
