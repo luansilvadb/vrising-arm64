@@ -1,87 +1,64 @@
-# =============================================================================
-# V Rising Dedicated Server - Docker Compose
-# =============================================================================
-# Para usar com EasyPanel:
-# 1. Faça push deste repositório para o GitHub
-# 2. No EasyPanel, crie um novo serviço do tipo "Docker"
-# 3. Aponte para o repositório e branch main
-# 4. Configure as variáveis de ambiente conforme necessário
-# =============================================================================
+version: '3.8'
 
 services:
   vrising:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: vrising-server
+    build: .
+    image: vrising-fex:latest
+    container_name: vrising-fex
     restart: unless-stopped
-
-    # Variáveis de ambiente para configuração
+    security_opt: [ seccomp:unconfined ]
+    cap_add: [ SYS_PTRACE ]
+    env_file: .env
+    # ports:
+    #   - "9876:9876/udp"
+    #   - "9877:9877/udp"
     environment:
-      # Configurações básicas do servidor
-      - SERVER_NAME=${SERVER_NAME:-Velion}
-      - SERVER_DESCRIPTION=${SERVER_DESCRIPTION:-Servidor dedicado brasileiro - Bem-vindo ao Velion!}
-      - WORLD_NAME=${WORLD_NAME:-world1}
-      - PASSWORD=${PASSWORD:-}
-      - MAX_USERS=${MAX_USERS:-100}
-
-      # Portas do jogo
+      - SERVER_NAME=${SERVER_NAME:-V Rising FEX Server}
+      - SAVE_NAME=${SAVE_NAME:-world1}
+      - SERVER_DESCRIPTION=${SERVER_DESCRIPTION:-}
+      - LIST_ON_MASTER_SERVER=${LIST_ON_MASTER_SERVER:-true}
       - GAME_PORT=${GAME_PORT:-9876}
       - QUERY_PORT=${QUERY_PORT:-9877}
-
-      # Visibilidade do servidor (true = aparece na lista pública)
-      - LIST_ON_MASTER_SERVER=${LIST_ON_MASTER_SERVER:-true}
-      - LIST_ON_EOS=${LIST_ON_EOS:-true}
-
-      # Modo de jogo
-      - GAME_MODE_TYPE=${GAME_MODE_TYPE:-PvP}
-
-      # Preset de dificuldade (Difficulty_Easy, Difficulty_Normal, Difficulty_Brutal)
-      - GAME_DIFFICULTY_PRESET=${GAME_DIFFICULTY_PRESET:-Difficulty_Brutal}
-
-      # FPS do servidor (30 = menos CPU, 60 = mais fluido)
+      - MAX_CONNECTED_USERS=${MAX_CONNECTED_USERS:-100}
+      - MAX_CONNECTED_ADMINS=${MAX_CONNECTED_ADMINS:-5}
       - SERVER_FPS=${SERVER_FPS:-60}
-
-      # Atualização automática no restart
-      - AUTO_UPDATE=${AUTO_UPDATE:-true}
-
-      # RCON (acesso admin remoto)
+      - SERVER_PASSWORD=${SERVER_PASSWORD:-}
+      - SECURE=${SECURE:-true}
+      - AUTO_SAVE_COUNT=${AUTO_SAVE_COUNT:-25}
+      - AUTO_SAVE_INTERVAL=${AUTO_SAVE_INTERVAL:-120}
+      - COMPRESS_SAVE_FILES=${COMPRESS_SAVE_FILES:-true}
+      - GAME_SETTINGS_PRESET=${GAME_SETTINGS_PRESET:-}
+      - GAME_DIFFICULTY_PRESET=${GAME_DIFFICULTY_PRESET:-}
+      - ADMIN_ONLY_DEBUG_EVENTS=${ADMIN_ONLY_DEBUG_EVENTS:-true}
+      - DISABLE_DEBUG_EVENTS=${DISABLE_DEBUG_EVENTS:-false}
+      - API_ENABLED=${API_ENABLED:-false}
       - RCON_ENABLED=${RCON_ENABLED:-true}
       - RCON_PORT=${RCON_PORT:-25575}
       - RCON_PASSWORD=${RCON_PASSWORD:-}
 
-      # Timezone
-      - TZ=${TZ:-America/Sao_Paulo}
-
-    # Portas expostas (UDP para jogo, TCP para RCON)
-    ports:
-      - "${GAME_PORT:-9876}:${GAME_PORT:-9876}/udp"
-      - "${QUERY_PORT:-9877}:${QUERY_PORT:-9877}/udp"
-      - "${RCON_PORT:-25575}:${RCON_PORT:-25575}/tcp"
-
-    # Volumes para persistência de dados
     volumes:
-      # Volume único para todos os dados (server, saves, wine, logs)
       - vrising-data:/data
 
-    # Recursos (ajuste conforme necessário)
-    # EasyPanel gerencia isso automaticamente, mas você pode definir limites
-    deploy:
-      resources:
-        limits:
-          memory: 8G
-        reservations:
-          memory: 4G
+    # --- OTIMIZAÇÕES DE PERFORMANCE ---
+    # 1. Modo Host: ATIVADO para máxima performance de rede (menor ping).
+    # O container usa a porta 9876 UDP diretamente do servidor.
+    network_mode: host
 
-    # Healthcheck
-    healthcheck:
-      test: [ "CMD", "nc", "-zu", "localhost", "${GAME_PORT:-9876}" ]
-      interval: 60s
-      timeout: 10s
-      start_period: 900s
-      retries: 3
+    # A seção 'ports' foi REMOVIDA pois o modo host já expõe todas as portas.
+    # ports:
+    #   - "9876:9876/udp"
+    #   - "9877:9877/udp"
 
-# Volumes nomeados para persistência
+    # 2. Limites do Sistema: Evita engasgos por falta de descritores de arquivo.
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 65535
+        hard: 65535
+    # 3. Otimizações do Emulador FEX (Avançado)
+    # Tenta usar '0' se precisar de mais CPU, mas monitore se o servidor fica instável.
+    # environment:
+    #   - FEX_TSOENABLE=1
+
 volumes:
   vrising-data:
-    driver: local
